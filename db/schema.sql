@@ -8,6 +8,7 @@ CREATE TABLE city (
     country         TEXT NOT NULL,
     latitude        DOUBLE PRECISION NOT NULL,
     longitude       DOUBLE PRECISION NOT NULL,
+    iata_code       CHAR(3),                            -- primary airport, used for Aviationstack route lookups
     is_origin       BOOLEAN NOT NULL DEFAULT TRUE,      -- can be selected as an origin
     is_destination  BOOLEAN NOT NULL DEFAULT TRUE       -- can be selected as a destination
 );
@@ -29,6 +30,11 @@ CREATE TABLE emission_factor (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- NOTE: only seed rows here for train/coach/car — modes that make sense
+-- within the same continent/region (mostly intra-Europe for now). For any
+-- intercontinental pair, only 'flight' is offered, and its distance is
+-- computed on the fly via haversine (great-circle) using city.latitude/
+-- longitude — no seed row needed for flights at all.
 CREATE TABLE transport_option (
     id                  SERIAL PRIMARY KEY,
     origin_city_id      INTEGER NOT NULL REFERENCES city(id),

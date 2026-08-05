@@ -90,5 +90,18 @@ pytest tests/
 
 ## Status
 
-Project scaffolding only at this stage — implementation in progress.
+## Status
+
+**Phase 1 complete:**
+- NeonDB provisioned, schema applied, seeded with 21 cities across 6
+  continents (including IATA codes for flight lookups), transport modes,
+  emission factors, tags, starter hotels/experiences/offsets.
+- All 4 external APIs verified working — see `docs/api-integration-decision.md`
+  for confirmed endpoints, auth, coordinate-order gotchas, and two mid-project
+  platform changes (OpenRouteService's domain migration, Amadeus's
+  decommissioning) already accounted for.
+
+**Next: Phase 2** — finalize `domain.yml` (intents/slots/forms/responses)
+and sketch the dialogue flows for Task 3.
+
 See commit history for phase-by-phase progress.
