@@ -1,0 +1,17 @@
+# Rasa 3.6.x requires Python 3.10
+rasa==3.6.20
+rasa-sdk==3.6.2
+
+# Database (NeonDB / PostgreSQL)
+SQLAlchemy==2.0.30
+psycopg2-binary==2.9.9
+
+# External API clients
+requests==2.32.3
+
+# Testing
+pytest==8.2.2
+pytest-asyncio==0.23.7
+
+# Admin API (kept minimal — reuses Rasa's own Sanic server if possible;
+# add fastapi/uvicorn here if we decide to run the admin API as its own process)

@@ -1,0 +1,7 @@
+action_endpoint:
+  url: "http://localhost:5055/webhook"
+
+# tracker_store: left as the default (in-memory) for now.
+# If we want conversation history to survive a restart, this can point at
+# NeonDB later (SQLAlchemy tracker store) — worth a line in docs/deployment.md
+# if we do.

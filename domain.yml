@@ -1,0 +1,51 @@
+# Domain for EcoVoyage Advisor.
+# STATUS: scaffold only — intents/slots/responses to be filled in during Task 4.
+# See docs/architecture.md for the design this domain implements.
+
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - affirm
+  - deny
+  - bot_challenge
+  - plan_trip
+  - inform
+  - request_recommendations
+  - request_human
+  - go_back
+  - edit_answer
+  - reset_trip
+  - out_of_scope
+
+entities:
+  - origin
+  - destination
+  - travel_date
+  - num_travellers
+  - budget
+  - sustainability_pref
+  - field_to_edit
+
+slots: {}
+# TODO: origin, destination, travel_date, num_travellers, budget,
+# sustainability_pref, estimated_co2, carbon_level, data_source (NeonDB is now
+# the primary source, so this slot may simplify vs. the reference repo).
+
+forms: {}
+# TODO: trip_planning_form with the six slots above as required_slots.
+
+actions: []
+# TODO: validate_trip_planning_form, action_estimate_carbon,
+# action_recommend_plan, action_high_emission_alert, action_handover,
+# action_scoped_fallback, action_go_back, action_edit_answer,
+# action_reset_trip.
+
+responses: {}
+# TODO: utter_greet, utter_ask_<slot> per slot, utter_carbon_disclaimer,
+# utter_out_of_scope, utter_ask_rephrase, utter_trip_reset, utter_default.
+
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: true

@@ -1,0 +1,12 @@
+# Test stories for `rasa test core` — STATUS: scaffold only.
+# To be filled in during Task 5 with happy-path and edge-case variations.
+
+version: "3.1"
+
+stories:
+  - story: test greet
+    steps:
+      - user: |
+          hello
+        intent: greet
+      - action: utter_greet

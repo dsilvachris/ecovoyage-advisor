@@ -1,0 +1,24 @@
+# NLU training data — STATUS: scaffold only, placeholder examples per intent.
+# To be expanded during Task 4 with enough real examples per intent for a
+# meaningful 80/20 rasa test nlu split (Task 5).
+
+version: "3.1"
+
+nlu:
+  - intent: greet
+    examples: |
+      - hey
+      - hello
+      - hi there
+
+  - intent: plan_trip
+    examples: |
+      - I want to plan a trip
+      - help me plan an eco-friendly holiday
+      - plan a sustainable trip for me
+
+  - intent: goodbye
+    examples: |
+      - bye
+      - goodbye
+      - see you later

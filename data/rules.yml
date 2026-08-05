@@ -1,0 +1,17 @@
+# Rules — STATUS: scaffold only.
+# The fallback rule and form-activation rule are the two the brief explicitly
+# asks for; to be completed during Task 4.
+
+version: "3.1"
+
+rules:
+  - rule: Say goodbye anytime the user says goodbye
+    steps:
+      - intent: goodbye
+      - action: utter_goodbye
+
+  - rule: Activate trip planning form
+    steps:
+      - intent: plan_trip
+      - action: trip_planning_form
+      - active_loop: trip_planning_form
