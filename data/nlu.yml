@@ -1,24 +1,289 @@
-# NLU training data — STATUS: scaffold only, placeholder examples per intent.
-# To be expanded during Task 4 with enough real examples per intent for a
-# meaningful 80/20 rasa test nlu split (Task 5).
+# NLU training data for EcoVoyage Advisor.
+# Rasa 3.6.x, DIETClassifier pipeline (see config.yml).
+# Entities are tagged directly as origin/destination/travel_date/
+# num_travellers/budget/sustainability_pref/field_to_edit to match domain.yml.
+# origin/destination use a lookup table (our 21 seeded cities) to help
+# entity extraction generalize beyond the literal training examples.
 
 version: "3.1"
 
 nlu:
-  - intent: greet
-    examples: |
-      - hey
-      - hello
-      - hi there
 
-  - intent: plan_trip
-    examples: |
-      - I want to plan a trip
-      - help me plan an eco-friendly holiday
-      - plan a sustainable trip for me
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+    - hi there
+    - good morning
+    - good afternoon
+    - hey there
+    - hello EcoVoyage
+    - morning
+    - hiya
 
-  - intent: goodbye
-    examples: |
-      - bye
-      - goodbye
-      - see you later
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you
+    - see you later
+    - that's all for now
+    - thanks, bye
+    - talk soon
+    - I'm done, thanks
+    - catch you later
+    - ok bye
+
+- intent: affirm
+  examples: |
+    - yes
+    - yes please
+    - correct
+    - that's right
+    - yep
+    - sure
+    - sounds good
+    - confirm
+    - exactly
+    - yes that's it
+
+- intent: deny
+  examples: |
+    - no
+    - nope
+    - not really
+    - that's wrong
+    - no thanks
+    - incorrect
+    - not quite
+    - no that's not right
+    - cancel that
+    - nah
+
+- intent: bot_challenge
+  examples: |
+    - are you a bot
+    - am I talking to a human or a bot
+    - are you a real person
+    - is this an AI
+    - who am I speaking to
+    - are you human
+    - what are you
+    - are you a chatbot
+
+- intent: plan_trip
+  examples: |
+    - I want to plan a trip
+    - help me plan an eco-friendly holiday
+    - plan a sustainable trip for me
+    - I'd like to book some travel
+    - can you help me plan a vacation
+    - I want to travel somewhere sustainable
+    - let's plan a trip
+    - I need help planning a low-carbon trip
+    - I'm looking to go on holiday
+    - book me an eco-friendly getaway
+    - start planning a trip
+    - I want to go somewhere green
+    - help me organize a trip
+    - I'd like to plan an eco tour
+
+- intent: inform
+  examples: |
+    - [London](origin)
+    - [Paris](destination)
+    - from [London](origin) to [Paris](destination)
+    - flying from [Tokyo](origin) to [Sydney](destination)
+    - I'm travelling from [New York](origin) to [Toronto](destination)
+    - starting in [Berlin](origin), heading to [Copenhagen](destination)
+    - [Cape Town](origin) to [Nairobi](destination)
+    - I'll be leaving from [Madrid](origin)
+    - my destination is [Bangkok](destination)
+    - I want to go to [Rio de Janeiro](destination)
+    - travelling to [Amsterdam](destination)
+    - departing from [Dublin](origin)
+    - [Vienna](origin) to [Prague](destination) please
+    - somewhere near [Lisbon](destination)
+    - [flexible](travel_date)
+    - I'm flexible on dates
+    - [next month](travel_date)
+    - [15th September](travel_date)
+    - sometime in [October](travel_date)
+    - [next weekend](travel_date)
+    - [this summer](travel_date)
+    - [just me](num_travellers)
+    - [2](num_travellers)
+    - [3 of us](num_travellers)
+    - [me and my partner](num_travellers)
+    - [me and my wife](num_travellers)
+    - [family of four](num_travellers)
+    - travelling with [4 friends](num_travellers)
+    - it'll be [2 adults and a kid](num_travellers)
+    - [budget](budget)
+    - keep it [budget](budget) friendly
+    - something [cheap](budget)
+    - I'd like a [mid](budget) range budget
+    - go for [comfort](budget)
+    - money isn't a big concern, [comfort](budget) is fine
+    - [low_carbon](sustainability_pref)
+    - lowest carbon option please
+    - I care most about [low carbon](sustainability_pref)
+    - prioritize [eco certified](sustainability_pref) hotels
+    - I want to support the [local community](sustainability_pref)
+    - keep it [balanced](sustainability_pref)
+    - just give me a [balanced](sustainability_pref) mix
+
+- intent: request_recommendations
+  examples: |
+    - show me the plan
+    - what do you recommend
+    - give me the recommendations
+    - what are my options
+    - show me the results
+    - what's the best option
+    - can I see the plan now
+    - show me what you've got
+    - what do you suggest
+
+- intent: request_human
+  examples: |
+    - I want to talk to a human
+    - can I speak to a real person
+    - connect me with an advisor
+    - I need human help
+    - talk to a person please
+    - this isn't working, get me a human
+    - I'd rather speak to someone
+    - can a real travel advisor help me
+    - transfer me to a human
+    - I want a human advisor
+
+- intent: go_back
+  examples: |
+    - go back
+    - previous question
+    - can we go back
+    - back up a step
+    - go back to the last question
+    - undo that
+    - take me back
+
+- intent: edit_answer
+  examples: |
+    - I want to change my [destination](field_to_edit)
+    - can I edit the [budget](field_to_edit)
+    - change my [origin](field_to_edit)
+    - I'd like to edit the [travel date](field_to_edit)
+    - can we change the [number of travellers](field_to_edit)
+    - edit my [sustainability preference](field_to_edit)
+    - I made a mistake with the [destination](field_to_edit)
+    - let me fix the [budget](field_to_edit)
+
+- intent: reset_trip
+  examples: |
+    - start over
+    - reset the trip
+    - let's start again
+    - clear everything and restart
+    - can we start from scratch
+    - forget what I said, start over
+    - reset
+
+- intent: out_of_scope
+  examples: |
+    - what's the weather like today
+    - can you help me with my taxes
+    - tell me a joke
+    - what's the capital of France
+    - can you book me a restaurant table
+    - help me write an email
+    - what's your favorite movie
+    - can you do my homework
+
+synonyms:
+- synonym: budget
+  examples: |
+    - cheap
+    - affordable
+    - low cost
+    - budget friendly
+
+- synonym: mid
+  examples: |
+    - mid range
+    - medium
+    - moderate
+
+- synonym: comfort
+  examples: |
+    - comfortable
+    - premium
+    - upscale
+
+- synonym: low_carbon
+  examples: |
+    - lowest carbon
+    - low carbon
+    - least emissions
+
+- synonym: eco_certified
+  examples: |
+    - eco certified
+    - eco-certified
+    - certified green
+
+- synonym: local_culture
+  examples: |
+    - local community
+    - support locals
+    - community support
+
+lookup_tables:
+- lookup: origin
+  examples: |
+    - London
+    - Paris
+    - Madrid
+    - Rome
+    - Berlin
+    - Barcelona
+    - Amsterdam
+    - Vienna
+    - Prague
+    - Lisbon
+    - Copenhagen
+    - Dublin
+    - Cape Town
+    - Nairobi
+    - Tokyo
+    - Bangkok
+    - New York
+    - Toronto
+    - Rio de Janeiro
+    - Bogotá
+    - Sydney
+
+- lookup: destination
+  examples: |
+    - London
+    - Paris
+    - Madrid
+    - Rome
+    - Berlin
+    - Barcelona
+    - Amsterdam
+    - Vienna
+    - Prague
+    - Lisbon
+    - Copenhagen
+    - Dublin
+    - Cape Town
+    - Nairobi
+    - Tokyo
+    - Bangkok
+    - New York
+    - Toronto
+    - Rio de Janeiro
+    - Bogotá
+    - Sydney
