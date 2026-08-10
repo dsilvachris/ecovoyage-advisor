@@ -153,7 +153,10 @@ slots:
     influence_conversation: false
     mappings:
       - type: custom
-  destination_guess:          # holds a typo suggestion, e.g. "Paris" for "Pariiis"
+  pending_city_guess:          # holds a typo suggestion for whichever city slot is
+                                # currently active (origin or destination) — renamed
+                                # from destination_guess after discovering the origin
+                                # typo-confirmation flow was never actually implemented
     type: text
     influence_conversation: false
     mappings:

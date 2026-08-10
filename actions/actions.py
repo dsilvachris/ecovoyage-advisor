@@ -34,16 +34,23 @@ RESOLVED DESIGN DECISIONS:
 5. FR-07 high-emission alert: originally a separate action
    (action_high_emission_alert) invoked via stories/TEDPolicy. This created
    a genuine story-structure conflict (two different action sequences
-   possible after action_estimate_carbon: straight to action_recommend_plan,
-   OR via action_high_emission_alert first) that TEDPolicy sometimes
+   possible after action_estimate_carbon) that TEDPolicy sometimes
    mispredicted in live testing, silently skipping the alert on a real
    red-carbon trip. Fixed by moving the check into a plain Python
    conditional called directly from ActionRecommendPlan
    (_dispatch_high_emission_alert_if_needed), so it fires 100% reliably
    based on the carbon_level slot rather than depending on model
-   confidence. This also permanently resolved the story conflict, since
-   every story now has an identical action sequence after
-   action_estimate_carbon.
+   confidence. This also permanently resolved the story conflict.
+
+6. pending_city_guess (renamed from destination_guess): live testing found
+   extract_origin created a typo guess via _dispatch_city_confirmation but
+   never actually consumed the resulting affirm/deny — only
+   extract_destination did. A user who typo'd their ORIGIN city and tapped
+   "Yes" would loop forever, since nothing was listening for that
+   confirmation on the origin slot. Fixed by giving extract_origin the same
+   affirm/deny handling as extract_destination, and renaming the shared
+   slot from destination_guess to pending_city_guess since it's genuinely
+   used by both, not just destination.
 """
 
 import logging
@@ -320,6 +327,14 @@ class ValidateTripPlanningForm(FormValidationAction):
         if tracker.get_slot("requested_slot") != "origin":
             return {}
 
+        pending_guess = tracker.get_slot("pending_city_guess")
+        latest_intent = tracker.latest_message.get("intent", {}).get("name")
+        if pending_guess and latest_intent == "affirm":
+            return {"origin": pending_guess, "pending_city_guess": None}
+        if pending_guess and latest_intent == "deny":
+            dispatcher.utter_message(text="No problem — where are you travelling from?")
+            return {"pending_city_guess": None}
+
         # Prefer the entity Rasa already extracted (covers both button taps,
         # which arrive as /inform{"origin": "City"} payloads parsed by
         # Rasa's RegexMessageHandler, and free-text NLU extraction) — only
@@ -334,7 +349,7 @@ class ValidateTripPlanningForm(FormValidationAction):
             return {"origin": result["name"]}
         if result["status"] == "fuzzy":
             _dispatch_city_confirmation(dispatcher, result["guess"])
-            return {"destination_guess": result["guess"]}
+            return {"pending_city_guess": result["guess"]}
         return {}
 
     async def extract_destination(
@@ -343,13 +358,13 @@ class ValidateTripPlanningForm(FormValidationAction):
         if tracker.get_slot("requested_slot") != "destination":
             return {}
 
-        pending_guess = tracker.get_slot("destination_guess")
+        pending_guess = tracker.get_slot("pending_city_guess")
         latest_intent = tracker.latest_message.get("intent", {}).get("name")
         if pending_guess and latest_intent == "affirm":
-            return {"destination": pending_guess, "destination_guess": None}
+            return {"destination": pending_guess, "pending_city_guess": None}
         if pending_guess and latest_intent == "deny":
             dispatcher.utter_message(text="No problem — which destination did you mean?")
-            return {"destination_guess": None}
+            return {"pending_city_guess": None}
 
         entities = tracker.latest_message.get("entities", [])
         entity_value = next((e["value"] for e in entities if e["entity"] == "destination"), None)
@@ -367,7 +382,7 @@ class ValidateTripPlanningForm(FormValidationAction):
 
         if result["status"] == "fuzzy":
             _dispatch_city_confirmation(dispatcher, result["guess"])
-            return {"destination_guess": result["guess"]}
+            return {"pending_city_guess": result["guess"]}
 
         return {}
 
@@ -584,7 +599,7 @@ class ActionClarifyDestination(Action):
     async def run(
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> List[Dict[Text, Any]]:
-        guess = tracker.get_slot("destination_guess")
+        guess = tracker.get_slot("pending_city_guess")
         if guess:
             _dispatch_city_confirmation(dispatcher, guess)
         return []
@@ -646,7 +661,7 @@ class ActionResetTrip(Action):
         slots_to_clear = REQUIRED_SLOTS_ORDER + [
             "estimated_co2", "carbon_level", "data_source",
             "recommended_mode", "recommended_distance_km", "recommended_price_eur",
-            "destination_guess",
+            "pending_city_guess",
         ]
         return [SlotSet(s, None) for s in slots_to_clear] + [ActiveLoop(None)]
 
