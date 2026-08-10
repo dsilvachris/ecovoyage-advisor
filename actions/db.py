@@ -10,11 +10,20 @@ and avoids a second abstraction on top of the schema in db/schema.sql.
 NeonDB is now our sole primary data store (see docs/api-integration-decision.md
 — this is a deliberate deviation from the reference implementation we
 reviewed, which used NeonDB as a fallback tier behind local JSON). There is
-no local fallback tier here: every function in repository.py is defensive
-about a transient connection error (catches, logs, returns None/empty rather
-than crashing the conversation), but there is nothing to degrade *to* if
-NeonDB itself is down — that's the accepted trade-off documented in
-docs/api-integration-decision.md.
+no local fallback tier here.
+
+IMPORTANT DESIGN NOTE (fixed after a real crash during local testing):
+get_cursor() only catches errors from ACQUIRING a connection (pool
+exhausted, DB unreachable) — it yields None in that case, which callers
+check for. Errors from the QUERY ITSELF (bad SQL, missing column, etc.) are
+NOT caught here; they propagate to the caller as real exceptions. This is
+required by Python's @contextmanager, which only permits a single yield —
+an earlier version tried to catch query errors here too and yield None a
+second time, which raises "generator didn't stop after throw()" on any
+query failure. Each function in repository.py is responsible for wrapping
+its own query in try/except and returning the correct fallback value for
+that specific query (an empty list vs. None vs. re-raising, depending on
+what the caller needs).
 """
 
 import os
@@ -37,9 +46,6 @@ def is_db_configured() -> bool:
 
 
 def _get_pool() -> pool.SimpleConnectionPool | None:
-    """Lazily creates the connection pool on first use, not at import time —
-    so actions.py can be imported (e.g. for tests) even without a configured
-    NEON_DATABASE_URL, and only fails when the DB is actually touched."""
     global _connection_pool
 
     if not is_db_configured():
@@ -62,17 +68,12 @@ def _get_pool() -> pool.SimpleConnectionPool | None:
 @contextmanager
 def get_cursor(commit: bool = False):
     """
-    Context manager yielding a RealDictCursor (rows come back as dicts, not
-    tuples — matches the {"key": value} shape the rest of the codebase
-    expects, e.g. geo.py's supported_cities list).
+    Yields a RealDictCursor, or None if the connection pool itself is
+    unavailable (DB not configured, or connection acquisition failed).
 
-    Usage:
-        with get_cursor() as cur:
-            cur.execute("SELECT * FROM city WHERE name = %s", (name,))
-            row = cur.fetchone()
-
-    Yields None if the pool couldn't be created (DB unconfigured or
-    unreachable) — callers must check for this (see repository.py's pattern).
+    Query-execution errors are NOT caught here — see module docstring.
+    Callers must wrap their cur.execute(...) calls in their own
+    try/except psycopg2.Error to handle that case gracefully.
     """
     conn_pool = _get_pool()
     if conn_pool is None:
@@ -82,15 +83,18 @@ def get_cursor(commit: bool = False):
     conn = None
     try:
         conn = conn_pool.getconn()
+    except psycopg2.Error as e:
+        logger.error("Failed to acquire a NeonDB connection: %s", e)
+        yield None
+        return
+
+    try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         yield cur
         if commit:
             conn.commit()
-    except psycopg2.Error as e:
-        logger.error("NeonDB query failed: %s", e)
-        if conn:
-            conn.rollback()
-        yield None
+    except psycopg2.Error:
+        conn.rollback()
+        raise
     finally:
-        if conn:
-            conn_pool.putconn(conn)
+        conn_pool.putconn(conn)
