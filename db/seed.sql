@@ -1,9 +1,10 @@
 -- db/seed.sql
 -- STATUS: consolidated seed — 21 cities (12 Europe-focused + 9 across other
 -- continents), each with an IATA code for Aviationstack route lookups,
--- transport modes, emission factors, tags, and a starter set of
--- hotels/experiences/offsets. Expand hotel/experience/offset coverage during
--- Task 4.
+-- transport modes, emission factors, tags, curated ground-transport
+-- distances for a spread of intra-Europe pairs, and a starter set of
+-- hotels/experiences/offsets. Expand hotel/experience/offset coverage
+-- during Task 4.
 -- NOTE: ground transport (train/coach/car) is only meaningful for intra-Europe
 -- pairs; intercontinental routes are flight-only, computed via haversine at
 -- query time — no transport_option rows are needed for those pairs.
@@ -56,6 +57,93 @@ INSERT INTO tag (name) VALUES
 ('locally_owned'),
 ('low_carbon'),
 ('community_supporting');
+
+-- Ground transport (train/coach/car) for a spread of intra-Europe pairs.
+-- Discovered missing entirely during local testing (Berlin->Copenhagen
+-- came back flight-only despite a low_carbon preference, because no
+-- transport_option rows existed for ANY route at all) — this section
+-- fixes that gap for both directions of each pair below.
+INSERT INTO transport_option (origin_city_id, destination_city_id, transport_mode_id, distance_km)
+SELECT o.id, d.id, tm.id, v.distance_km FROM (VALUES
+    -- London <-> Paris (Scenario 1)
+    ('London','Paris','train',495.0),
+    ('London','Paris','coach',460.0),
+    ('London','Paris','car',460.0),
+    ('Paris','London','train',495.0),
+    ('Paris','London','coach',460.0),
+    ('Paris','London','car',460.0),
+
+    -- Berlin <-> Copenhagen (Scenario 3)
+    ('Berlin','Copenhagen','train',360.0),
+    ('Berlin','Copenhagen','coach',355.0),
+    ('Berlin','Copenhagen','car',355.0),
+    ('Copenhagen','Berlin','train',360.0),
+    ('Copenhagen','Berlin','coach',355.0),
+    ('Copenhagen','Berlin','car',355.0),
+
+    -- Madrid <-> Barcelona
+    ('Madrid','Barcelona','train',505.0),
+    ('Madrid','Barcelona','coach',620.0),
+    ('Madrid','Barcelona','car',620.0),
+    ('Barcelona','Madrid','train',505.0),
+    ('Barcelona','Madrid','coach',620.0),
+    ('Barcelona','Madrid','car',620.0),
+
+    -- Paris <-> Amsterdam
+    ('Paris','Amsterdam','train',430.0),
+    ('Paris','Amsterdam','coach',510.0),
+    ('Paris','Amsterdam','car',510.0),
+    ('Amsterdam','Paris','train',430.0),
+    ('Amsterdam','Paris','coach',510.0),
+    ('Amsterdam','Paris','car',510.0),
+
+    -- Berlin <-> Prague
+    ('Berlin','Prague','train',350.0),
+    ('Berlin','Prague','coach',350.0),
+    ('Berlin','Prague','car',350.0),
+    ('Prague','Berlin','train',350.0),
+    ('Prague','Berlin','coach',350.0),
+    ('Prague','Berlin','car',350.0),
+
+    -- Vienna <-> Prague
+    ('Vienna','Prague','train',330.0),
+    ('Vienna','Prague','coach',330.0),
+    ('Vienna','Prague','car',330.0),
+    ('Prague','Vienna','train',330.0),
+    ('Prague','Vienna','coach',330.0),
+    ('Prague','Vienna','car',330.0),
+
+    -- London <-> Amsterdam
+    ('London','Amsterdam','train',490.0),
+    ('London','Amsterdam','coach',540.0),
+    ('London','Amsterdam','car',540.0),
+    ('Amsterdam','London','train',490.0),
+    ('Amsterdam','London','coach',540.0),
+    ('Amsterdam','London','car',540.0),
+
+    -- Dublin <-> London
+    ('Dublin','London','coach',600.0),
+    ('Dublin','London','car',600.0),
+    ('London','Dublin','coach',600.0),
+    ('London','Dublin','car',600.0),
+
+    -- Lisbon <-> Madrid
+    ('Lisbon','Madrid','train',660.0),
+    ('Lisbon','Madrid','coach',630.0),
+    ('Lisbon','Madrid','car',630.0),
+    ('Madrid','Lisbon','train',660.0),
+    ('Madrid','Lisbon','coach',630.0),
+    ('Madrid','Lisbon','car',630.0),
+
+    -- Rome <-> Barcelona
+    ('Rome','Barcelona','coach',1250.0),
+    ('Rome','Barcelona','car',1250.0),
+    ('Barcelona','Rome','coach',1250.0),
+    ('Barcelona','Rome','car',1250.0)
+) AS v(origin, destination, mode, distance_km)
+JOIN city o ON o.name = v.origin
+JOIN city d ON d.name = v.destination
+JOIN transport_mode tm ON tm.name = v.mode;
 
 -- Starter hotels — one eco-certified example per select city, to be expanded in Task 4
 INSERT INTO hotel (city_id, name, eco_certification, nightly_price_estimate, sustainability_score, carbon_score) VALUES
