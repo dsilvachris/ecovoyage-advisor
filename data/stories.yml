@@ -5,9 +5,11 @@
 # to the 5 scenarios in docs/dialogue-flows.md. Each story below is labeled
 # with which scenario it represents.
 #
-# utter_carbon_disclaimer is NOT listed explicitly in any story below — it's
-# now a rule (see rules.yml) that fires after every action_recommend_plan,
-# so repeating it here would create a story/rule conflict.
+# utter_carbon_disclaimer is placed explicitly after EVERY occurrence of
+# action_recommend_plan, consistently, in every story below — this was
+# tried as a rule instead and reverted (see rules.yml) because a
+# condition-less rule is a strict global constraint that contradicts any
+# story ending right after action_recommend_plan.
 #
 # Every story that reaches action_recommend_plan tags slot_was_set for
 # carbon_level immediately after action_estimate_carbon — this is what lets
@@ -32,6 +34,7 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
 
 - story: happy path - best option still red, alert fires (Scenario 2)
   steps:
@@ -46,6 +49,7 @@ stories:
     - carbon_level: red
   - action: action_high_emission_alert
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
 
 - story: user requests a human advisor mid-conversation (Scenario 3)
   steps:
@@ -57,6 +61,7 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
   - intent: request_human
   - action: action_handover
 
@@ -73,6 +78,7 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
 
 - story: repeated fallback escalates to human handover without completing the form (Scenario 5)
   steps:
@@ -101,8 +107,10 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
   - intent: request_recommendations
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
 
 - story: destination typo triggers clarification then form continues
   steps:
@@ -117,6 +125,7 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
 
 - story: destination typo suggestion rejected, bot asks again
   steps:
@@ -157,6 +166,7 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
   - intent: edit_answer
   - action: action_edit_answer
   - action: trip_planning_form

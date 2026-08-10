@@ -9,6 +9,13 @@
 # stories.yml instead, where TEDPolicy can learn it from slot_was_set
 # conditions. Everything below is a genuinely context-independent, single
 # fixed response — safe to declare as a rule.
+#
+# utter_carbon_disclaimer was tried as a rule here and reverted: a rule with
+# no condition is a strict global constraint (next action after
+# action_recommend_plan MUST be utter_carbon_disclaimer, always), which
+# directly contradicts any story ending at action_recommend_plan (implicit
+# action_listen). Explicit placement in every story (stories.yml) is the
+# correct fix instead.
 
 version: "3.1"
 
@@ -50,8 +57,3 @@ rules:
   - intent: reset_trip
   - action: action_reset_trip
   - action: utter_trip_reset
-
-- rule: Show carbon disclaimer after every recommendation
-  steps:
-  - action: action_recommend_plan
-  - action: utter_carbon_disclaimer
