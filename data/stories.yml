@@ -4,6 +4,15 @@
 # conversation paths TEDPolicy needs training examples for, tracing directly
 # to the 5 scenarios in docs/dialogue-flows.md. Each story below is labeled
 # with which scenario it represents.
+#
+# utter_carbon_disclaimer is NOT listed explicitly in any story below — it's
+# now a rule (see rules.yml) that fires after every action_recommend_plan,
+# so repeating it here would create a story/rule conflict.
+#
+# Every story that reaches action_recommend_plan tags slot_was_set for
+# carbon_level immediately after action_estimate_carbon — this is what lets
+# TEDPolicy distinguish "straight to recommendation" (green) from "alert
+# first" (red) instead of seeing an ambiguous, unresolvable branch.
 
 version: "3.1"
 
@@ -23,7 +32,6 @@ stories:
   - slot_was_set:
     - carbon_level: green
   - action: action_recommend_plan
-  - action: utter_carbon_disclaimer
 
 - story: happy path - best option still red, alert fires (Scenario 2)
   steps:
@@ -38,7 +46,6 @@ stories:
     - carbon_level: red
   - action: action_high_emission_alert
   - action: action_recommend_plan
-  - action: utter_carbon_disclaimer
 
 - story: user requests a human advisor mid-conversation (Scenario 3)
   steps:
@@ -47,6 +54,8 @@ stories:
   - active_loop: trip_planning_form
   - active_loop: null
   - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
   - action: action_recommend_plan
   - intent: request_human
   - action: action_handover
@@ -61,8 +70,9 @@ stories:
     - sustainability_pref: eco_certified
     - budget: budget
   - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
   - action: action_recommend_plan
-  - action: utter_carbon_disclaimer
 
 - story: repeated fallback escalates to human handover without completing the form (Scenario 5)
   steps:
@@ -88,6 +98,8 @@ stories:
   - active_loop: trip_planning_form
   - active_loop: null
   - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
   - action: action_recommend_plan
   - intent: request_recommendations
   - action: action_recommend_plan
@@ -102,6 +114,8 @@ stories:
   - action: trip_planning_form
   - active_loop: null
   - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
   - action: action_recommend_plan
 
 - story: destination typo suggestion rejected, bot asks again
@@ -140,6 +154,8 @@ stories:
   - active_loop: trip_planning_form
   - active_loop: null
   - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
   - action: action_recommend_plan
   - intent: edit_answer
   - action: action_edit_answer

@@ -50,3 +50,8 @@ rules:
   - intent: reset_trip
   - action: action_reset_trip
   - action: utter_trip_reset
+
+- rule: Show carbon disclaimer after every recommendation
+  steps:
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
