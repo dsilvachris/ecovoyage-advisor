@@ -11,7 +11,7 @@ result into a sensible conversational response.
 import logging
 import psycopg2
 import psycopg2.extras
-from db import get_cursor
+from .db import get_cursor
 
 logger = logging.getLogger(__name__)
 
