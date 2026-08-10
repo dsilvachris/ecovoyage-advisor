@@ -1,14 +1,184 @@
-# Stories — STATUS: scaffold only.
-# To be filled in during Task 4 with the happy-path and edge-case flows
-# described in Task 3's prototype (short city break, eco-tour, business trip).
+# Stories for EcoVoyage Advisor.
+# Rasa 3.6.x. Form activation/deactivation and the fallback rule live in
+# rules.yml (RulePolicy) — these stories cover the flexible, branching
+# conversation paths TEDPolicy needs training examples for, tracing directly
+# to the 5 scenarios in docs/dialogue-flows.md. Each story below is labeled
+# with which scenario it represents.
 
 version: "3.1"
 
 stories:
-  - story: greet then plan a trip
-    steps:
-      - intent: greet
-      - action: utter_greet
-      - intent: plan_trip
-      - action: trip_planning_form
-      - active_loop: trip_planning_form
+
+- story: happy path - low carbon preference, green result (Scenario 1)
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - slot_was_set:
+    - sustainability_pref: low_carbon
+  - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
+
+- story: happy path - best option still red, alert fires (Scenario 2)
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - slot_was_set:
+    - sustainability_pref: local_culture
+  - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: red
+  - action: action_high_emission_alert
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
+
+- story: user requests a human advisor mid-conversation (Scenario 3)
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - intent: request_human
+  - action: action_handover
+
+- story: eco certified preference on a single-transport-mode route (Scenario 4)
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - slot_was_set:
+    - sustainability_pref: eco_certified
+    - budget: budget
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
+
+- story: repeated fallback escalates to human handover without completing the form (Scenario 5)
+  steps:
+  - intent: nlu_fallback
+  - action: action_scoped_fallback
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - action: action_clarify_destination
+  - intent: affirm
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: nlu_fallback
+  - action: action_scoped_fallback
+  - intent: request_human
+  - action: action_handover
+  - active_loop: null
+
+- story: user asks to see recommendations again after they're already shown
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - intent: request_recommendations
+  - action: action_recommend_plan
+
+- story: destination typo triggers clarification then form continues
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - action: action_clarify_destination
+  - intent: affirm
+  - action: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+
+- story: destination typo suggestion rejected, bot asks again
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - action: action_clarify_destination
+  - intent: deny
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: user requests a human advisor before finishing the form
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: request_human
+  - action: action_handover
+  - active_loop: null
+
+- story: go back to the previous question
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: go_back
+  - action: action_go_back
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: edit a previously given answer after the form is complete
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - intent: edit_answer
+  - action: action_edit_answer
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: reset the trip and start over
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: reset_trip
+  - action: action_reset_trip
+  - action: utter_trip_reset
+
+- story: out of scope interruption, then resumes planning
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: out_of_scope
+  - action: utter_out_of_scope
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: user asks if this is a bot, then continues planning
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: bot_challenge
+  - action: utter_iamabot
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: greet then say goodbye without planning a trip
+  steps:
+  - intent: greet
+  - action: utter_greet
+  - intent: goodbye
+  - action: utter_goodbye
