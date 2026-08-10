@@ -39,11 +39,11 @@ from rasa_sdk import Action, FormValidationAction, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet, ActiveLoop, FollowupAction
 
-import carbon
-import routing
-import geo
-import aviation
-import repository
+from . import carbon
+from . import routing
+from . import geo
+from . import aviation
+from . import repository
 
 logger = logging.getLogger(__name__)
 

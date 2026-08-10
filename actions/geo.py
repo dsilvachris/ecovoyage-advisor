@@ -18,7 +18,7 @@ import os
 import difflib
 import requests
 
-from routing import haversine_km
+from .routing import haversine_km
 
 OPENCAGE_API_KEY = os.environ.get("OPENCAGE_API_KEY")
 OPENCAGE_ENDPOINT = "https://api.opencagedata.com/geocode/v1/json"
