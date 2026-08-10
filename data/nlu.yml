@@ -133,6 +133,14 @@ nlu:
     - I want to support the [local community](sustainability_pref)
     - keep it [balanced](sustainability_pref)
     - just give me a [balanced](sustainability_pref) mix
+    - budget
+    - mid
+    - comfort
+    - low carbon
+    - eco certified
+    - local culture
+    - balanced
+    - flexible
 
 - intent: request_recommendations
   examples: |

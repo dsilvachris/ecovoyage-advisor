@@ -719,11 +719,15 @@ class ActionHandover(Action):
 # --------------------------------------------------------------------------
 
 class ActionScopedFallback(Action):
-    """Single-behavior fallback, not a literal 3-strike counter: inside the
-    form, re-asks the SAME question the user just failed to answer
-    (context-aware); outside the form, dispatches utter_ask_rephrase, which
-    already offers both 'Plan a trip' and 'Talk to a human' — so a user is
-    never more than one tap from reaching a human on any fallback."""
+    """Context-aware fallback (FR-10): inside the form, re-asks the SAME
+    question the user just failed to answer by dispatching that slot's own
+    utter_ask_<slot> response directly, then returns control to
+    action_listen so the user gets a genuine chance to reply before
+    anything runs again. Deliberately does NOT use FollowupAction to
+    re-invoke the form immediately — that re-validates the SAME stale
+    message with no new input, which can spin repeatedly within a single
+    turn until Rasa's internal action-count safety cap cuts it off (this
+    was a real bug found during live testing, not a hypothetical)."""
 
     def name(self) -> Text:
         return "action_scoped_fallback"
@@ -732,7 +736,13 @@ class ActionScopedFallback(Action):
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> List[Dict[Text, Any]]:
         if tracker.active_loop.get("name") == "trip_planning_form":
-            return [FollowupAction("trip_planning_form")]
+            requested_slot = tracker.get_slot("requested_slot")
+            utter_name = f"utter_ask_{requested_slot}"
+            if requested_slot and utter_name in domain.get("responses", {}):
+                dispatcher.utter_message(response=utter_name)
+            else:
+                dispatcher.utter_message(response="utter_ask_rephrase")
+            return []
 
         dispatcher.utter_message(response="utter_ask_rephrase")
         return []
