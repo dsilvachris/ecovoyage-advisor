@@ -22,16 +22,10 @@ RESOLVED DESIGN DECISIONS:
    called from exactly one place, only when the winning mode is 'flight'
    (the "call sparingly" quota decision documented in aviation.py).
 
-3. action_clarify_destination: the typo-confirmation flow (FR-03) is
-   implemented directly inside extract_destination/extract_origin, so it's
-   deterministic rather than depending on the dialogue policy correctly
-   predicting a separate action. action_clarify_destination is kept as a
-   real, working standalone action for symmetry with domain.yml/stories.yml.
-
-4. action_scoped_fallback: implemented as a single-behavior action, not a
+3. action_scoped_fallback: implemented as a single-behavior action, not a
    literal 3-strike counter — see class docstring below for why.
 
-5. FR-07 high-emission alert: originally a separate action
+4. FR-07 high-emission alert: originally a separate action
    (action_high_emission_alert) invoked via stories/TEDPolicy. This created
    a genuine story-structure conflict (two different action sequences
    possible after action_estimate_carbon) that TEDPolicy sometimes
@@ -42,15 +36,22 @@ RESOLVED DESIGN DECISIONS:
    based on the carbon_level slot rather than depending on model
    confidence. This also permanently resolved the story conflict.
 
-6. pending_city_guess (renamed from destination_guess): live testing found
-   extract_origin created a typo guess via _dispatch_city_confirmation but
-   never actually consumed the resulting affirm/deny — only
-   extract_destination did. A user who typo'd their ORIGIN city and tapped
-   "Yes" would loop forever, since nothing was listening for that
-   confirmation on the origin slot. Fixed by giving extract_origin the same
-   affirm/deny handling as extract_destination, and renaming the shared
-   slot from destination_guess to pending_city_guess since it's genuinely
-   used by both, not just destination.
+5. Typo confirmation (FR-03) — REDESIGNED after live debugging: the
+   original approach stored a fuzzy-match guess in a cross-slot
+   (pending_city_guess) set by extract_origin/extract_destination, to be
+   read back and consumed on the next turn when the user replied
+   affirm/deny. Live debugging (full tracker.current_slot_values() dumps)
+   proved this rasa-sdk version (3.6.2) does not reliably persist a slot
+   returned from extract_<X> when that slot isn't the one the method is
+   named for and isn't a form required_slot — the slot was always None on
+   the following turn despite being returned correctly. Redesigned so the
+   "Did you mean X?" confirmation's "Yes" button payload directly encodes
+   the corrected city as /inform{"origin": "X"} (or "destination"), so
+   confirming a typo flows through the exact same button-tap -> entity ->
+   exact-match path already proven reliable everywhere else in the app.
+   No cross-turn slot dependency at all — action_clarify_destination is
+   kept registered only for symmetry with domain.yml/stories.yml, and now
+   does nothing (see its docstring).
 """
 
 import logging
@@ -204,11 +205,14 @@ def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
     return {"status": "none"}
 
 
-def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, guess: str) -> None:
+def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, slot_name: str, guess: str) -> None:
+    """FR-03 — see module docstring, point 5. The "Yes" button carries the
+    corrected city directly in its /inform payload rather than relying on
+    a slot surviving to the next turn."""
     dispatcher.utter_message(
         text=f"Did you mean {guess}?",
         buttons=[
-            {"title": "Yes", "payload": "/affirm"},
+            {"title": "Yes", "payload": f'/inform{{{{"{slot_name}": "{guess}"}}}}'},
             {"title": "No", "payload": "/deny"},
         ],
     )
@@ -327,13 +331,10 @@ class ValidateTripPlanningForm(FormValidationAction):
         if tracker.get_slot("requested_slot") != "origin":
             return {}
 
-        pending_guess = tracker.get_slot("pending_city_guess")
         latest_intent = tracker.latest_message.get("intent", {}).get("name")
-        if pending_guess and latest_intent == "affirm":
-            return {"origin": pending_guess, "pending_city_guess": None}
-        if pending_guess and latest_intent == "deny":
+        if latest_intent == "deny":
             dispatcher.utter_message(text="No problem — where are you travelling from?")
-            return {"pending_city_guess": None}
+            return {}
 
         # Prefer the entity Rasa already extracted (covers both button taps,
         # which arrive as /inform{"origin": "City"} payloads parsed by
@@ -348,8 +349,8 @@ class ValidateTripPlanningForm(FormValidationAction):
         if result["status"] == "exact":
             return {"origin": result["name"]}
         if result["status"] == "fuzzy":
-            _dispatch_city_confirmation(dispatcher, result["guess"])
-            return {"pending_city_guess": result["guess"]}
+            _dispatch_city_confirmation(dispatcher, "origin", result["guess"])
+            return {}
         return {}
 
     async def extract_destination(
@@ -358,13 +359,10 @@ class ValidateTripPlanningForm(FormValidationAction):
         if tracker.get_slot("requested_slot") != "destination":
             return {}
 
-        pending_guess = tracker.get_slot("pending_city_guess")
         latest_intent = tracker.latest_message.get("intent", {}).get("name")
-        if pending_guess and latest_intent == "affirm":
-            return {"destination": pending_guess, "pending_city_guess": None}
-        if pending_guess and latest_intent == "deny":
+        if latest_intent == "deny":
             dispatcher.utter_message(text="No problem — which destination did you mean?")
-            return {"pending_city_guess": None}
+            return {}
 
         entities = tracker.latest_message.get("entities", [])
         entity_value = next((e["value"] for e in entities if e["entity"] == "destination"), None)
@@ -381,8 +379,8 @@ class ValidateTripPlanningForm(FormValidationAction):
             return {"destination": result["name"]}
 
         if result["status"] == "fuzzy":
-            _dispatch_city_confirmation(dispatcher, result["guess"])
-            return {"pending_city_guess": result["guess"]}
+            _dispatch_city_confirmation(dispatcher, "destination", result["guess"])
+            return {}
 
         return {}
 
@@ -485,7 +483,7 @@ def _dispatch_high_emission_alert_if_needed(
     """FR-07: fires deterministically based on the carbon_level slot —
     called directly from ActionRecommendPlan's code rather than left as a
     separate action for the dialogue policy to predict. See module
-    docstring, point 5, for why."""
+    docstring, point 4, for why."""
     if tracker.get_slot("carbon_level") != "red":
         return
 
@@ -589,19 +587,21 @@ class ActionRecommendPlan(Action):
 
 # --------------------------------------------------------------------------
 # Typo clarification standalone action (FR-03) — see module docstring,
-# point 3, for why the typo flow itself doesn't depend on this being called.
+# point 5, for why this now does nothing: the real flow happens inline
+# inside extract_origin/extract_destination.
 # --------------------------------------------------------------------------
 
 class ActionClarifyDestination(Action):
+    """Kept registered for symmetry with domain.yml/stories.yml. The typo
+    confirmation flow itself now lives entirely inside extract_origin/
+    extract_destination — see module docstring, point 5."""
+
     def name(self) -> Text:
         return "action_clarify_destination"
 
     async def run(
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> List[Dict[Text, Any]]:
-        guess = tracker.get_slot("pending_city_guess")
-        if guess:
-            _dispatch_city_confirmation(dispatcher, guess)
         return []
 
 
@@ -661,7 +661,6 @@ class ActionResetTrip(Action):
         slots_to_clear = REQUIRED_SLOTS_ORDER + [
             "estimated_co2", "carbon_level", "data_source",
             "recommended_mode", "recommended_distance_km", "recommended_price_eur",
-            "pending_city_guess",
         ]
         return [SlotSet(s, None) for s in slots_to_clear] + [ActiveLoop(None)]
 
@@ -711,7 +710,7 @@ class ActionHandover(Action):
 
 
 # --------------------------------------------------------------------------
-# Fallback (FR-10) — see module docstring, point 4
+# Fallback (FR-10) — see module docstring, point 3
 # --------------------------------------------------------------------------
 
 class ActionScopedFallback(Action):
