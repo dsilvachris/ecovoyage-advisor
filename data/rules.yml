@@ -1,17 +1,52 @@
-# Rules — STATUS: scaffold only.
-# The fallback rule and form-activation rule are the two the brief explicitly
-# asks for; to be completed during Task 4.
+# Rules for EcoVoyage Advisor.
+# Rasa 3.6.x, used alongside RulePolicy (config.yml).
+#
+# Design note: form ACTIVATION is a rule (deterministic — plan_trip always
+# opens the form, regardless of context). Form SUBMISSION follow-up is
+# deliberately NOT a rule — what happens after the form completes branches
+# on carbon_level (green -> straight to recommendation, red -> alert first),
+# which rules can't express mid-sequence. That branching logic lives in
+# stories.yml instead, where TEDPolicy can learn it from slot_was_set
+# conditions. Everything below is a genuinely context-independent, single
+# fixed response — safe to declare as a rule.
 
 version: "3.1"
 
 rules:
-  - rule: Say goodbye anytime the user says goodbye
-    steps:
-      - intent: goodbye
-      - action: utter_goodbye
 
-  - rule: Activate trip planning form
-    steps:
-      - intent: plan_trip
-      - action: trip_planning_form
-      - active_loop: trip_planning_form
+- rule: Activate trip planning form
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- rule: Implementation of two-stage NLU fallback
+  steps:
+  - intent: nlu_fallback
+  - action: action_scoped_fallback
+
+- rule: Say hello anytime the user greets
+  steps:
+  - intent: greet
+  - action: utter_greet
+
+- rule: Say goodbye anytime the user says goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+
+- rule: Respond to bot challenge anytime
+  steps:
+  - intent: bot_challenge
+  - action: utter_iamabot
+
+- rule: Handle out-of-scope requests anytime
+  steps:
+  - intent: out_of_scope
+  - action: utter_out_of_scope
+
+- rule: Reset the trip anytime it's requested
+  steps:
+  - intent: reset_trip
+  - action: action_reset_trip
+  - action: utter_trip_reset
