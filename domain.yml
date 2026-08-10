@@ -138,6 +138,21 @@ slots:
     influence_conversation: false
     mappings:
       - type: custom
+  recommended_mode:            # winning transport mode from action_estimate_carbon's scoring
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: custom
+  recommended_distance_km:
+    type: float
+    influence_conversation: false
+    mappings:
+      - type: custom
+  recommended_price_eur:
+    type: float
+    influence_conversation: false
+    mappings:
+      - type: custom
   destination_guess:          # holds a typo suggestion, e.g. "Paris" for "Pariiis"
     type: text
     influence_conversation: false
