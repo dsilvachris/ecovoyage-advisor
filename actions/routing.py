@@ -117,7 +117,7 @@ def get_distance_km(
             return {"distance_km": live_km, "data_source": "openrouteservice"}
 
     if curated_distance_km is not None:
-        return {"distance_km": curated_distance_km, "data_source": "stored"}
+        return {"distance_km": float(curated_distance_km), "data_source": "stored"}
 
     # No curated row (e.g. intercontinental pair with no train/coach seeded,
     # or 'car' with ORS unavailable and no stored row either).
