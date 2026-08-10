@@ -208,11 +208,16 @@ def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
 def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, slot_name: str, guess: str) -> None:
     """FR-03 — see module docstring, point 5. The "Yes" button carries the
     corrected city directly in its /inform payload rather than relying on
-    a slot surviving to the next turn."""
+    a slot surviving to the next turn. Single braces here, NOT double —
+    this text is built directly in Python and sent via
+    dispatcher.utter_message(), so it never passes through Rasa's NLG
+    .format() interpolator (that's only for domain.yml response templates,
+    which is why utter_ask_origin etc. needed doubled {{ }} but this
+    doesn't)."""
     dispatcher.utter_message(
         text=f"Did you mean {guess}?",
         buttons=[
-            {"title": "Yes", "payload": f'/inform{{{{"{slot_name}": "{guess}"}}}}'},
+            {"title": "Yes", "payload": f'/inform{{"{slot_name}": "{guess}"}}'},
             {"title": "No", "payload": "/deny"},
         ],
     )
