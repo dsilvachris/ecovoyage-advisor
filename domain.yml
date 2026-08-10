@@ -193,73 +193,73 @@ responses:
     - text: "Where are you travelling from? Tap a city or type any of our supported cities."
       buttons:
         - title: "London"
-          payload: '/inform{"origin": "London"}'
+          payload: '/inform{{"origin": "London"}}'
         - title: "Paris"
-          payload: '/inform{"origin": "Paris"}'
+          payload: '/inform{{"origin": "Paris"}}'
         - title: "New York"
-          payload: '/inform{"origin": "New York"}'
+          payload: '/inform{{"origin": "New York"}}'
         - title: "Tokyo"
-          payload: '/inform{"origin": "Tokyo"}'
+          payload: '/inform{{"origin": "Tokyo"}}'
         - title: "Cape Town"
-          payload: '/inform{"origin": "Cape Town"}'
+          payload: '/inform{{"origin": "Cape Town"}}'
         - title: "Sydney"
-          payload: '/inform{"origin": "Sydney"}'
+          payload: '/inform{{"origin": "Sydney"}}'
 
   utter_ask_destination:
     - text: "Which destination would you like to explore? Tap one or type any supported city."
       buttons:
         - title: "Paris"
-          payload: '/inform{"destination": "Paris"}'
+          payload: '/inform{{"destination": "Paris"}}'
         - title: "Amsterdam"
-          payload: '/inform{"destination": "Amsterdam"}'
+          payload: '/inform{{"destination": "Amsterdam"}}'
         - title: "Nairobi"
-          payload: '/inform{"destination": "Nairobi"}'
+          payload: '/inform{{"destination": "Nairobi"}}'
         - title: "Bangkok"
-          payload: '/inform{"destination": "Bangkok"}'
+          payload: '/inform{{"destination": "Bangkok"}}'
         - title: "Rio de Janeiro"
-          payload: '/inform{"destination": "Rio de Janeiro"}'
+          payload: '/inform{{"destination": "Rio de Janeiro"}}'
         - title: "Copenhagen"
-          payload: '/inform{"destination": "Copenhagen"}'
+          payload: '/inform{{"destination": "Copenhagen"}}'
 
   utter_ask_travel_date:
     - text: "When are you planning to travel? You can type dates, or choose a flexible plan."
       buttons:
         - title: "I'm flexible"
-          payload: '/inform{"travel_date": "flexible"}'
+          payload: '/inform{{"travel_date": "flexible"}}'
 
   utter_ask_num_travellers:
     - text: "How many people are travelling? Pick a number, or type a phrase like \"me and my partner\"."
       buttons:
         - title: "Just me"
-          payload: '/inform{"num_travellers": "1"}'
+          payload: '/inform{{"num_travellers": "1"}}'
         - title: "2"
-          payload: '/inform{"num_travellers": "2"}'
+          payload: '/inform{{"num_travellers": "2"}}'
         - title: "3"
-          payload: '/inform{"num_travellers": "3"}'
+          payload: '/inform{{"num_travellers": "3"}}'
         - title: "4"
-          payload: '/inform{"num_travellers": "4"}'
+          payload: '/inform{{"num_travellers": "4"}}'
 
   utter_ask_budget:
     - text: "What's your rough daily budget per person?"
       buttons:
         - title: "Budget (up to €80/day)"
-          payload: '/inform{"budget": "budget"}'
+          payload: '/inform{{"budget": "budget"}}'
         - title: "Mid (€80-150/day)"
-          payload: '/inform{"budget": "mid"}'
+          payload: '/inform{{"budget": "mid"}}'
         - title: "Comfort (€150+/day)"
-          payload: '/inform{"budget": "comfort"}'
+          payload: '/inform{{"budget": "comfort"}}'
 
   utter_ask_sustainability_pref:
     - text: "Last question: what matters most for this trip? This shapes how I rank your options."
       buttons:
         - title: "Lowest carbon"
-          payload: '/inform{"sustainability_pref": "low_carbon"}'
+          payload: '/inform{{"sustainability_pref": "low_carbon"}}'
         - title: "Eco-certified hotels"
-          payload: '/inform{"sustainability_pref": "eco_certified"}'
+          payload: '/inform{{"sustainability_pref": "eco_certified"}}'
         - title: "Local community support"
-          payload: '/inform{"sustainability_pref": "local_culture"}'
+          payload: '/inform{{"sustainability_pref": "local_culture"}}'
         - title: "Balanced"
-          payload: '/inform{"sustainability_pref": "balanced"}'
+          payload: '/inform{{"sustainability_pref": "balanced"}}'
 
   utter_carbon_disclaimer:
     - text: "Note: carbon values are estimates based on average emission factors and curated data. Verify against an official source (e.g. DEFRA/ICAO) before relying on them."

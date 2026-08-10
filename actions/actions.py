@@ -306,7 +306,14 @@ class ValidateTripPlanningForm(FormValidationAction):
         if tracker.get_slot("requested_slot") != "origin":
             return {}
 
-        raw = tracker.latest_message.get("text", "")
+        # Prefer the entity Rasa already extracted (covers both button taps,
+        # which arrive as /inform{"origin": "City"} payloads parsed by
+        # Rasa's RegexMessageHandler, and free-text NLU extraction) — only
+        # fall back to raw text if no entity was found at all.
+        entities = tracker.latest_message.get("entities", [])
+        entity_value = next((e["value"] for e in entities if e["entity"] == "origin"), None)
+        raw = entity_value if entity_value else tracker.latest_message.get("text", "")
+
         result = _resolve_city_input(raw)
 
         if result["status"] == "exact":
@@ -322,7 +329,6 @@ class ValidateTripPlanningForm(FormValidationAction):
         if tracker.get_slot("requested_slot") != "destination":
             return {}
 
-        # Confirmation follow-up from a prior fuzzy match (FR-03)
         pending_guess = tracker.get_slot("destination_guess")
         latest_intent = tracker.latest_message.get("intent", {}).get("name")
         if pending_guess and latest_intent == "affirm":
@@ -331,7 +337,10 @@ class ValidateTripPlanningForm(FormValidationAction):
             dispatcher.utter_message(text="No problem — which destination did you mean?")
             return {"destination_guess": None}
 
-        raw = tracker.latest_message.get("text", "")
+        entities = tracker.latest_message.get("entities", [])
+        entity_value = next((e["value"] for e in entities if e["entity"] == "destination"), None)
+        raw = entity_value if entity_value else tracker.latest_message.get("text", "")
+
         result = _resolve_city_input(raw)
 
         if result["status"] == "exact":
