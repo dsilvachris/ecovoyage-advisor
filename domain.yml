@@ -170,11 +170,10 @@ forms:
       - sustainability_pref
 
 actions:
-  - validate_trip_planning_form   # FR-01, FR-03: validates slots, typo clarification
-  - action_estimate_carbon        # FR-05: uses carbon.py -> Climatiq or stored factor
-  - action_recommend_plan         # FR-04, FR-06: repository.py -> hotels, transport, offsets, scoring
-  - action_high_emission_alert    # FR-07: warns when even the best option is carbon-intensive
-  - action_clarify_destination    # FR-03: "Did you mean Paris?" confirmation flow
+  - validate_trip_planning_form
+  - action_estimate_carbon
+  - action_recommend_plan
+  - action_clarify_destination
   - action_go_back                # FR-11
   - action_edit_answer            # FR-11
   - action_reset_trip             # FR-12

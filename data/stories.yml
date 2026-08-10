@@ -47,7 +47,6 @@ stories:
   - action: action_estimate_carbon
   - slot_was_set:
     - carbon_level: red
-  - action: action_high_emission_alert
   - action: action_recommend_plan
   - action: utter_carbon_disclaimer
 

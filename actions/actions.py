@@ -30,6 +30,20 @@ RESOLVED DESIGN DECISIONS:
 
 4. action_scoped_fallback: implemented as a single-behavior action, not a
    literal 3-strike counter — see class docstring below for why.
+
+5. FR-07 high-emission alert: originally a separate action
+   (action_high_emission_alert) invoked via stories/TEDPolicy. This created
+   a genuine story-structure conflict (two different action sequences
+   possible after action_estimate_carbon: straight to action_recommend_plan,
+   OR via action_high_emission_alert first) that TEDPolicy sometimes
+   mispredicted in live testing, silently skipping the alert on a real
+   red-carbon trip. Fixed by moving the check into a plain Python
+   conditional called directly from ActionRecommendPlan
+   (_dispatch_high_emission_alert_if_needed), so it fires 100% reliably
+   based on the carbon_level slot rather than depending on model
+   confidence. This also permanently resolved the story conflict, since
+   every story now has an identical action sequence after
+   action_estimate_carbon.
 """
 
 import logging
@@ -444,41 +458,37 @@ class ActionEstimateCarbon(Action):
         ]
 
 
-class ActionHighEmissionAlert(Action):
-    """FR-07: only fires when the BEST available option is still red — not
-    merely because some other, already-rejected option was red."""
+# --------------------------------------------------------------------------
+# Recommendation (FR-04, FR-07) — hotels, experience, transport summary,
+# the high-emission alert, and the single point where aviation.py is
+# called (only when flight is the winner)
+# --------------------------------------------------------------------------
 
-    def name(self) -> Text:
-        return "action_high_emission_alert"
+def _dispatch_high_emission_alert_if_needed(
+    dispatcher: CollectingDispatcher, tracker: Tracker
+) -> None:
+    """FR-07: fires deterministically based on the carbon_level slot —
+    called directly from ActionRecommendPlan's code rather than left as a
+    separate action for the dialogue policy to predict. See module
+    docstring, point 5, for why."""
+    if tracker.get_slot("carbon_level") != "red":
+        return
 
-    async def run(
-        self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
-    ) -> List[Dict[Text, Any]]:
-        if tracker.get_slot("carbon_level") != "red":
-            return []
-
-        dispatcher.utter_message(
-            text=(
-                "Heads up — even the lowest-carbon option for this route is fairly "
-                "carbon-intensive. You might consider offsetting the footprint."
-            )
+    dispatcher.utter_message(
+        text=(
+            "Heads up — even the lowest-carbon option for this route is fairly "
+            "carbon-intensive. You might consider offsetting the footprint."
         )
+    )
 
-        offsets = repository.get_offset_options()
-        if offsets:
-            lines = [
-                f"- {o['provider_name']} ({o['project_type']}) — approx. €{o['estimated_cost_per_tonne']}/tonne"
-                for o in offsets[:2]
-            ]
-            dispatcher.utter_message(text="\n".join(lines))
+    offsets = repository.get_offset_options()
+    if offsets:
+        lines = [
+            f"- {o['provider_name']} ({o['project_type']}) — approx. €{o['estimated_cost_per_tonne']}/tonne"
+            for o in offsets[:2]
+        ]
+        dispatcher.utter_message(text="\n".join(lines))
 
-        return []
-
-
-# --------------------------------------------------------------------------
-# Recommendation (FR-04) — hotels, experience, transport summary, and the
-# single point where aviation.py is called (only when flight is the winner)
-# --------------------------------------------------------------------------
 
 class ActionRecommendPlan(Action):
     def name(self) -> Text:
@@ -492,6 +502,8 @@ class ActionRecommendPlan(Action):
         if not origin_city or not destination_city:
             dispatcher.utter_message(text="I've lost track of your route — let's start the trip again.")
             return []
+
+        _dispatch_high_emission_alert_if_needed(dispatcher, tracker)
 
         mode = tracker.get_slot("recommended_mode")
         distance_km = tracker.get_slot("recommended_distance_km")
