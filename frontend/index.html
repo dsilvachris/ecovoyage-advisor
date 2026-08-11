@@ -373,10 +373,15 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
   }
 
   function tryRenderTransportCard(text) {
-    const match = text.match(/^Recommended transport: (.+) — (green|amber|red)\)$/s);
+    // Allows optional trailing text after the closing paren (e.g. the
+    // " for 3 days" duration suffix added to action_recommend_plan's
+    // message) — the color card should still render, just with that
+    // extra text appended inside it.
+    const match = text.match(/^Recommended transport: (.+) — (green|amber|red)\)(.*)$/s);
     if (!match) return false;
     const body = match[1];
     const level = match[2];
+    const trailing = match[3] || "";
 
     const card = document.createElement("div");
     card.className = "transport-card " + level;
@@ -385,7 +390,7 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
     pill.textContent = level === "green" ? "Low carbon" : level === "amber" ? "Moderate carbon" : "High carbon";
     card.appendChild(pill);
     const detail = document.createElement("div");
-    detail.textContent = body + ")";
+    detail.textContent = body + ")" + trailing;
     card.appendChild(detail);
     chatWindow.appendChild(card);
     scrollToBottom();
