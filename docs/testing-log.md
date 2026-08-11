@@ -226,3 +226,46 @@ review.
 - `pytest` unit tests with mocked API responses (success/fail/edge case
   per action) — Task 5
 - User testing / Likert survey — Task 5
+
+## rasa test nlu — cross-validation results (5-fold)
+
+Run: `rasa test nlu --cross-validation --folds 5`
+
+| Metric | Train | Test |
+|---|---|---|
+| Intent Accuracy | 1.000 (±0.000) | 0.665 (±0.093) |
+| Intent F1 | 1.000 (±0.000) | 0.635 (±0.095) |
+| Intent Precision | 1.000 (±0.000) | 0.641 (±0.105) |
+| Entity (DIETClassifier) Accuracy | 0.994 (±0.002) | 0.867 (±0.022) |
+| Entity (DIETClassifier) F1 | 0.981 (±0.005) | 0.305 (±0.046) |
+| Entity (DIETClassifier) Precision | 0.968 (±0.012) | 0.448 (±0.173) |
+
+**Interpretation:** the large gap between perfect training-fold scores and
+materially lower test-fold scores is a clear overfitting signal, expected
+given the current dataset size (~10-14 examples per intent). Entity F1 in
+particular (0.305 test vs 0.981 train) is far weaker than the accuracy
+figure alone suggests — accuracy is inflated by the large proportion of
+tokens carrying no entity at all, while F1 (computed over entity spans
+specifically) exposes the real generalization gap.
+
+**Confusion matrix findings** (`results/intent_report.json`,
+`results/DIETClassifier_report.json`):
+
+| Intent | Issue | Likely cause |
+|---|---|---|
+| `out_of_scope` | Only 1/8 correctly classified; confused with `goodbye`, `plan_trip`, `request_recommendations`, `edit_answer` | Catch-all intent covering highly diverse phrasing; 8 examples cannot represent that diversity |
+| `bot_challenge` | Confused with `request_human` 3/8 times | Genuine lexical overlap ("human" appears in both) |
+| `affirm` | Confused with `inform` 4/10 times | Short affirmative words carry weak distinguishing signal |
+
+**Action taken:** expanded `data/nlu.yml` with more varied `out_of_scope`
+examples and clearer `bot_challenge` phrasing (see commit history) to
+directly address the two most severe confusions found. Re-running
+cross-validation after this expansion is a natural next step, and the
+before/after comparison is itself good evidence for the report of an
+iterative "train → evaluate → refine" NLU development cycle (LO2).
+
+**Honest limitation:** even after targeted expansion, a dataset this size
+will likely still show a meaningful train/test gap — the fundamental fix
+is more training data per intent, which is a scope/time tradeoff worth
+naming explicitly in the report rather than claiming the gap is fully
+closed.

@@ -295,3 +295,36 @@ lookup_tables:
     - Rio de Janeiro
     - Bogotá
     - Sydney
+
+- intent: out_of_scope
+  examples: |
+    - what's the weather like today
+    - can you help me with my taxes
+    - tell me a joke
+    - what's the capital of France
+    - can you book me a restaurant table
+    - help me write an email
+    - what's your favorite movie
+    - can you do my homework
+    - what's the score of the match
+    - can you play some music
+    - what's a good recipe for pasta
+    - help me fix my printer
+    - what stocks should I buy
+    - can you translate this sentence
+    - what's the news today
+
+- intent: bot_challenge
+  examples: |
+    - are you a bot
+    - am I talking to a human or a bot
+    - are you a real person
+    - is this an AI
+    - who am I speaking to
+    - are you human
+    - what are you
+    - are you a chatbot
+    - is this automated
+    - am I chatting with a robot
+    - are you artificial intelligence
+    - is a real person reading this
