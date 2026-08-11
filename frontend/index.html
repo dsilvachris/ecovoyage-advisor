@@ -313,7 +313,7 @@
 
 <script>
 (function () {
-const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
+const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
   const SENDER_ID_KEY = "ecovoyage_sender_id";
   let senderId = localStorage.getItem(SENDER_ID_KEY);
   if (!senderId) {
