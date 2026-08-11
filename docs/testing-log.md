@@ -260,3 +260,38 @@ project, not a claim that the gap is closed. Given more time, `affirm` vs
 `inform` confusion (still present in this run) would be the next target,
 since single-word affirmatives carry limited distinguishing signal against
 `inform`'s broad vocabulary.
+
+## rasa test core — initial run and diagnosis
+
+First run against `tests/test_stories/test_stories.yml` showed only 3/10
+stories passing (0.300 conversation-level accuracy), with every failure
+showing the identical pattern: `action_scoped_fallback` predicted instead
+of the expected next step, starting immediately after the first user turn
+inside the active form.
+
+**Diagnosis:** the test stories, as originally written, omitted the
+repeated `action: trip_planning_form` step that must appear after every
+user turn while a form is active. Training stories in `data/stories.yml`
+can use a compact shorthand (a single `active_loop: trip_planning_form`
+line covering the whole multi-turn form sequence) and this trained
+correctly — but `rasa test core`'s exact-match evaluation against a test
+story requires every intermediate action to be spelled out explicitly.
+Skipping this in the test stories meant the tracker states being evaluated
+were never actually seen during training, which pushed `RulePolicy`'s
+`core_fallback_threshold` (0.4) below confidence and triggered the
+fallback safety net at nearly every step.
+
+**Confirmed as a test-authoring issue, not a model defect,** by the fact
+that all 5 real scenarios these test stories represent had already passed
+cleanly in extensive live testing (see the manual scenario verification
+section above) using the exact same form-filling sequences.
+
+**Fix:** rewrote all 10 test stories with the explicit
+`trip_planning_form` step included after every in-form user turn.
+
+**Reflection for the report:** this is a genuine, citable nuance of Rasa's
+story format — the shorthand that's valid for *training* data is not
+sufficient for *test* data's stricter exact-match evaluation, which is
+easy to miss and not obviously documented. Worth a line in the Testing
+section as an example of framework-specific tooling behaviour discovered
+through direct experimentation rather than assumed from the docs.

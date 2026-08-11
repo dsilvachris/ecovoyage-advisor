@@ -1,12 +1,323 @@
-# Test stories for `rasa test core` — STATUS: scaffold only.
-# To be filled in during Task 5 with happy-path and edge-case variations.
+# Test stories for `rasa test core`.
+# CORRECTED after a real authoring bug found in Task 5 testing: every user
+# turn while a form is active needs an explicit `action: trip_planning_form`
+# step before `action_listen`, even though training stories in
+# data/stories.yml can use the compact active_loop shorthand without it.
+# Omitting this in the first version caused every story to diverge onto
+# an unseen tracker state after the first form turn, triggering
+# RulePolicy's core_fallback_threshold and masking otherwise-correct model
+# behavior (see docs/testing-log.md for the full diagnosis).
 
 version: "3.1"
 
 stories:
-  - story: test greet
-    steps:
-      - user: |
-          hello
-        intent: greet
-      - action: utter_greet
+
+- story: test Scenario 1 - low carbon preference reaches recommendation
+  steps:
+  - user: |
+      hello
+    intent: greet
+  - action: utter_greet
+  - user: |
+      I want to plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      London
+    intent: inform
+    entities:
+    - origin: London
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      Paris
+    intent: inform
+    entities:
+    - destination: Paris
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      I'm flexible
+    intent: inform
+    entities:
+    - travel_date: flexible
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      2
+    intent: inform
+    entities:
+    - num_travellers: "2"
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      mid
+    intent: inform
+    entities:
+    - budget: mid
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      lowest carbon
+    intent: inform
+    entities:
+    - sustainability_pref: low_carbon
+  - action: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
+
+- story: test Scenario 3 - human handover after a completed trip
+  steps:
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      Berlin
+    intent: inform
+    entities:
+    - origin: Berlin
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      Copenhagen
+    intent: inform
+    entities:
+    - destination: Copenhagen
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      flexible
+    intent: inform
+    entities:
+    - travel_date: flexible
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      1
+    intent: inform
+    entities:
+    - num_travellers: "1"
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      comfort
+    intent: inform
+    entities:
+    - budget: comfort
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      balanced
+    intent: inform
+    entities:
+    - sustainability_pref: balanced
+  - action: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
+  - action: action_listen
+  - user: |
+      I'd like to speak to a human advisor
+    intent: request_human
+  - action: action_handover
+
+- story: test human handover before the form is complete
+  steps:
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      London
+    intent: inform
+    entities:
+    - origin: London
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      I want to talk to a human
+    intent: request_human
+  - action: action_handover
+  - active_loop: null
+
+- story: test go back to the previous question
+  steps:
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      London
+    intent: inform
+    entities:
+    - origin: London
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      go back
+    intent: go_back
+  - action: action_go_back
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: test edit answer after form completion
+  steps:
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      London
+    intent: inform
+    entities:
+    - origin: London
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      Paris
+    intent: inform
+    entities:
+    - destination: Paris
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      flexible
+    intent: inform
+    entities:
+    - travel_date: flexible
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      2
+    intent: inform
+    entities:
+    - num_travellers: "2"
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      mid
+    intent: inform
+    entities:
+    - budget: mid
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      balanced
+    intent: inform
+    entities:
+    - sustainability_pref: balanced
+  - action: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
+  - action: action_listen
+  - user: |
+      I want to change my destination
+    intent: edit_answer
+    entities:
+    - field_to_edit: destination
+  - action: action_edit_answer
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: test reset trip mid-form
+  steps:
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      London
+    intent: inform
+    entities:
+    - origin: London
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      start over
+    intent: reset_trip
+  - action: action_reset_trip
+  - action: utter_trip_reset
+
+- story: test out of scope interruption then resume
+  steps:
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      what's the weather like today
+    intent: out_of_scope
+  - action: utter_out_of_scope
+  - action: action_listen
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: test bot challenge then continue planning
+  steps:
+  - user: |
+      hi
+    intent: greet
+  - action: utter_greet
+  - action: action_listen
+  - user: |
+      are you a bot
+    intent: bot_challenge
+  - action: utter_iamabot
+  - action: action_listen
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+
+- story: test greet then goodbye without planning
+  steps:
+  - user: |
+      hello
+    intent: greet
+  - action: utter_greet
+  - action: action_listen
+  - user: |
+      bye
+    intent: goodbye
+  - action: utter_goodbye
+
+- story: test fallback escalation to human (Scenario 5, Bug 9b regression check)
+  steps:
+  - user: |
+      zzz qqq flibbertigibbet
+    intent: nlu_fallback
+  - action: action_scoped_fallback
+  - action: action_listen
+  - user: |
+      plan a trip
+    intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - user: |
+      xkjwoeiur random gibberish
+    intent: nlu_fallback
+  - action: action_scoped_fallback
+  - action: trip_planning_form
+  - action: action_listen
+  - user: |
+      I want a human advisor
+    intent: request_human
+  - action: action_handover
+  - active_loop: null
