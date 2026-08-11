@@ -13,37 +13,72 @@
     --red: #c62828;
     --red-bg: #ffebee;
     --primary: #1b6b52;
-    --primary-dark: #14503d;
-    --bg: #f5f7f6;
+    --primary-dark: #12493a;
+    --primary-light: #2f9c78;
+    --bg: #eef2f0;
     --bot-bubble: #ffffff;
     --user-bubble: #1b6b52;
-    --border: #dfe6e2;
+    --border: #e2e8e5;
     --text: #1c2b26;
+    --muted: #6b7a74;
   }
   * { box-sizing: border-box; }
-  body {
+  html, body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    height: 100%;
     background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: var(--text);
+  }
+
+  /* Centered "app" frame, like a phone-width widget rather than a full page */
+  #app-frame {
+    max-width: 480px;
     height: 100vh;
+    margin: 0 auto;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,0.08);
+  }
+  @media (min-width: 481px) {
+    body { display: flex; justify-content: center; }
+    #app-frame { height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
   }
 
   header {
-    background: var(--primary);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
     color: white;
-    padding: 14px 20px;
+    padding: 16px 18px;
     display: flex;
     align-items: center;
     gap: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    z-index: 2;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    z-index: 3;
   }
-  header .logo { font-size: 22px; }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
-  header .subtitle { font-size: 12px; opacity: 0.85; margin-left: auto; }
+  header .avatar-badge {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  header .titles { display: flex; flex-direction: column; }
+  header h1 { font-size: 15.5px; margin: 0; font-weight: 700; }
+  header .subtitle { font-size: 11.5px; opacity: 0.85; }
+
+  #progress-bar {
+    display: none;
+    height: 3px;
+    background: rgba(0,0,0,0.06);
+  }
+  #progress-bar.active { display: block; }
+  #progress-fill {
+    height: 100%;
+    background: var(--primary-light);
+    transition: width 0.3s ease;
+    width: 0%;
+  }
 
   #handover-banner {
     display: none;
@@ -51,7 +86,7 @@
     color: #fff;
     text-align: center;
     padding: 8px;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 500;
   }
   #handover-banner.active { display: block; }
@@ -59,24 +94,39 @@
   #chat-window {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: 16px 14px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
-  .msg-row { display: flex; }
+  @keyframes riseIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg-row { display: flex; gap: 8px; animation: riseIn 0.22s ease-out; }
   .msg-row.user { justify-content: flex-end; }
   .msg-row.bot { justify-content: flex-start; }
 
+  .avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
   .bubble {
-    max-width: 78%;
+    max-width: 76%;
     padding: 10px 14px;
-    border-radius: 14px;
-    line-height: 1.4;
-    font-size: 14.5px;
+    border-radius: 16px;
+    line-height: 1.42;
+    font-size: 14px;
     white-space: pre-wrap;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   }
   .bot .bubble {
     background: var(--bot-bubble);
@@ -89,22 +139,23 @@
     border-bottom-right-radius: 4px;
   }
 
-  /* Colour-coded transport recommendation card */
   .transport-card {
-    max-width: 78%;
-    border-radius: 12px;
+    max-width: 76%;
+    margin-left: 34px;
+    border-radius: 14px;
     padding: 12px 14px;
     border-left: 6px solid var(--border);
     background: var(--bot-bubble);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    font-size: 13.5px;
+    animation: riseIn 0.22s ease-out;
   }
   .transport-card.green { border-left-color: var(--green); background: var(--green-bg); }
   .transport-card.amber { border-left-color: var(--amber); background: var(--amber-bg); }
   .transport-card.red   { border-left-color: var(--red); background: var(--red-bg); }
   .transport-card .pill {
     display: inline-block;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -116,48 +167,87 @@
   .transport-card.amber .pill { background: var(--amber); color: white; }
   .transport-card.red .pill   { background: var(--red); color: white; }
 
-  /* High-emission alert */
   .alert-card {
-    max-width: 78%;
-    border-radius: 12px;
+    max-width: 76%;
+    margin-left: 34px;
+    border-radius: 14px;
     padding: 12px 14px;
     background: var(--red-bg);
     border: 1px solid var(--red);
     color: #7f1d1d;
-    font-size: 14px;
+    font-size: 13.5px;
+    animation: riseIn 0.22s ease-out;
   }
   .alert-card .alert-title { font-weight: 700; margin-bottom: 4px; }
 
-  /* Handover confirmation card */
   .handover-card {
-    max-width: 78%;
-    border-radius: 12px;
+    max-width: 76%;
+    margin-left: 34px;
+    border-radius: 14px;
     padding: 12px 14px;
     background: #eef2ff;
     border: 1px solid #6366f1;
     color: #312e81;
-    font-size: 14px;
+    font-size: 13.5px;
+    animation: riseIn 0.22s ease-out;
   }
 
   .buttons-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 4px;
-    max-width: 78%;
+    gap: 7px;
+    margin-top: 2px;
+    margin-left: 34px;
+    max-width: 76%;
   }
   .btn-chip {
     background: white;
     border: 1.5px solid var(--primary);
     color: var(--primary);
-    padding: 7px 14px;
+    padding: 7px 13px;
     border-radius: 18px;
-    font-size: 13.5px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
   }
   .btn-chip:hover { background: var(--primary); color: white; }
-  .btn-chip:disabled { opacity: 0.4; cursor: default; }
+  .btn-chip:active { transform: scale(0.96); }
+  .btn-chip:disabled { opacity: 0.35; cursor: default; }
+
+  /* Date picker row, shown alongside the "I'm flexible" button */
+  .date-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    margin-left: 34px;
+    max-width: 76%;
+    background: white;
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    padding: 4px 6px 4px 12px;
+  }
+  .date-picker-row input[type="date"] {
+    border: none;
+    outline: none;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: transparent;
+    flex: 1;
+  }
+  .date-picker-row button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .date-picker-row button:disabled { opacity: 0.4; cursor: default; }
 
   #input-bar {
     display: flex;
@@ -171,7 +261,7 @@
     padding: 11px 14px;
     border-radius: 20px;
     border: 1px solid var(--border);
-    font-size: 14.5px;
+    font-size: 14px;
     outline: none;
   }
   #text-input:focus { border-color: var(--primary); }
@@ -181,18 +271,14 @@
     border: none;
     border-radius: 20px;
     padding: 0 20px;
-    font-size: 14px;
+    font-size: 13.5px;
     font-weight: 600;
     cursor: pointer;
   }
   #send-btn:hover { background: var(--primary-dark); }
   #send-btn:disabled { opacity: 0.5; cursor: default; }
 
-  .typing-indicator {
-    display: flex;
-    gap: 4px;
-    padding: 10px 14px;
-  }
+  .typing-indicator { display: flex; gap: 4px; padding: 10px 14px; }
   .typing-indicator span {
     width: 6px; height: 6px; border-radius: 50%;
     background: #9aa8a2;
@@ -205,36 +291,29 @@
 </head>
 <body>
 
-<header>
-  <span class="logo">🌍</span>
-  <h1>EcoVoyage Advisor</h1>
-  <span class="subtitle">Sustainable trip planning</span>
-</header>
+<div id="app-frame">
+  <header>
+    <div class="avatar-badge">🌍</div>
+    <div class="titles">
+      <h1>EcoVoyage Advisor</h1>
+      <span class="subtitle">Sustainable trip planning</span>
+    </div>
+  </header>
 
-<div id="handover-banner">🧑‍💼 You're connected with a human travel advisor</div>
+  <div id="progress-bar"><div id="progress-fill"></div></div>
+  <div id="handover-banner">🧑‍💼 You're connected with a human travel advisor</div>
 
-<div id="chat-window" role="log" aria-live="polite"></div>
+  <div id="chat-window" role="log" aria-live="polite"></div>
 
-<div id="input-bar">
-  <input
-    id="text-input"
-    type="text"
-    placeholder="Type a message…"
-    aria-label="Message"
-    autocomplete="off"
-  />
-  <button id="send-btn" aria-label="Send message">Send</button>
+  <div id="input-bar">
+    <input id="text-input" type="text" placeholder="Type a message…" aria-label="Message" autocomplete="off" />
+    <button id="send-btn" aria-label="Send message">Send</button>
+  </div>
 </div>
 
 <script>
 (function () {
-  // Same-origin REST endpoint — works identically whether this page is
-  // served locally via docker compose or on Render, since nginx proxies
-  // /webhooks/ to the Rasa server on the same host (see deploy/nginx.conf).
-  // No hardcoded localhost URL, no CORS configuration needed.
 const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
-  // A persistent sender id per browser, so returning users keep their
-  // conversation (matches domain.yml's carry_over_slots_to_new_session).
   const SENDER_ID_KEY = "ecovoyage_sender_id";
   let senderId = localStorage.getItem(SENDER_ID_KEY);
   if (!senderId) {
@@ -246,6 +325,31 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
   const textInput = document.getElementById("text-input");
   const sendBtn = document.getElementById("send-btn");
   const handoverBanner = document.getElementById("handover-banner");
+  const progressBar = document.getElementById("progress-bar");
+  const progressFill = document.getElementById("progress-fill");
+
+  // Tracks progress through the 6-question trip-planning form, purely for
+  // the visual progress bar — not read by the bot, just pattern-matched
+  // from the question text so the frontend needs no backend changes.
+  const FORM_STEPS = [
+    "Where are you travelling from",
+    "Which destination would you like",
+    "When are you planning to travel",
+    "How many people are travelling",
+    "What's your rough daily budget",
+    "Last question: what matters most",
+  ];
+  function updateProgress(botText) {
+    const stepIndex = FORM_STEPS.findIndex((q) => botText.includes(q));
+    if (stepIndex === -1) {
+      if (botText.includes("Recommended transport") || !progressBar.classList.contains("active")) {
+        progressBar.classList.remove("active");
+      }
+      return;
+    }
+    progressBar.classList.add("active");
+    progressFill.style.width = Math.round(((stepIndex + 1) / FORM_STEPS.length) * 100) + "%";
+  }
 
   function scrollToBottom() {
     chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -254,6 +358,12 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
   function addBubble(sender, text) {
     const row = document.createElement("div");
     row.className = "msg-row " + sender;
+    if (sender === "bot") {
+      const av = document.createElement("div");
+      av.className = "avatar";
+      av.textContent = "🌱";
+      row.appendChild(av);
+    }
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     bubble.textContent = text;
@@ -262,43 +372,28 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
     scrollToBottom();
   }
 
-  // Parses "Recommended transport: train (495.0 km, ~€89.4 total,
-  // ~29.7 kg CO2e — green)" into a colour-coded card. Falls back to a
-  // plain bubble if the text doesn't match the expected shape — the
-  // backend (action_recommend_plan) always produces this exact format,
-  // but staying defensive here means a future wording tweak degrades
-  // gracefully instead of silently breaking the UI.
   function tryRenderTransportCard(text) {
     const match = text.match(/^Recommended transport: (.+) — (green|amber|red)\)$/s);
     if (!match) return false;
-
     const body = match[1];
     const level = match[2];
 
-    const row = document.createElement("div");
-    row.className = "msg-row bot";
     const card = document.createElement("div");
     card.className = "transport-card " + level;
-
     const pill = document.createElement("div");
     pill.className = "pill";
     pill.textContent = level === "green" ? "Low carbon" : level === "amber" ? "Moderate carbon" : "High carbon";
     card.appendChild(pill);
-
     const detail = document.createElement("div");
     detail.textContent = body + ")";
     card.appendChild(detail);
-
-    row.appendChild(card);
-    chatWindow.appendChild(row);
+    chatWindow.appendChild(card);
     scrollToBottom();
     return true;
   }
 
   function tryRenderAlertCard(text) {
     if (!text.startsWith("Heads up")) return false;
-    const row = document.createElement("div");
-    row.className = "msg-row bot";
     const card = document.createElement("div");
     card.className = "alert-card";
     const title = document.createElement("div");
@@ -308,8 +403,7 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
     const body = document.createElement("div");
     body.textContent = text;
     card.appendChild(body);
-    row.appendChild(card);
-    chatWindow.appendChild(row);
+    chatWindow.appendChild(card);
     scrollToBottom();
     return true;
   }
@@ -317,13 +411,10 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
   function tryRenderHandoverCard(text) {
     if (!text.includes("passed your details to a human travel advisor")) return false;
     handoverBanner.classList.add("active");
-    const row = document.createElement("div");
-    row.className = "msg-row bot";
     const card = document.createElement("div");
     card.className = "handover-card";
     card.textContent = "🧑‍💼 " + text;
-    row.appendChild(card);
-    chatWindow.appendChild(row);
+    chatWindow.appendChild(card);
     scrollToBottom();
     return true;
   }
@@ -337,14 +428,55 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
       chip.className = "btn-chip";
       chip.textContent = btn.title;
       chip.addEventListener("click", () => {
-        // Disable every chip in this row once one is tapped, so a user
-        // can't double-submit while the request is in flight.
         row.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+        const picker = row.parentElement.querySelector(".date-picker-row");
+        if (picker) picker.querySelector("button").disabled = true;
         sendToBot(btn.payload, btn.title);
       });
       row.appendChild(chip);
     });
     chatWindow.appendChild(row);
+    scrollToBottom();
+    return row;
+  }
+
+  // Adds a native date input next to the quick-reply row, only when the
+  // bot's question is the travel-date one. Sends the chosen date as plain
+  // text (e.g. "2026-09-15") — validate_travel_date in actions.py accepts
+  // any non-empty string as-is, no backend change required.
+  function addDatePicker(buttonsRow) {
+    const wrap = document.createElement("div");
+    wrap.className = "date-picker-row";
+
+    const input = document.createElement("input");
+    input.type = "date";
+    const today = new Date().toISOString().split("T")[0];
+    input.min = today;
+
+    const confirmBtn = document.createElement("button");
+    confirmBtn.textContent = "Use this date";
+    confirmBtn.disabled = true;
+
+    input.addEventListener("input", () => {
+      confirmBtn.disabled = !input.value;
+    });
+
+    confirmBtn.addEventListener("click", () => {
+      confirmBtn.disabled = true;
+      input.disabled = true;
+      if (buttonsRow) {
+        buttonsRow.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+      }
+      const formatted = new Date(input.value + "T00:00:00").toLocaleDateString(
+        undefined,
+        { year: "numeric", month: "long", day: "numeric" }
+      );
+      sendToBot(input.value, formatted);
+    });
+
+    wrap.appendChild(input);
+    wrap.appendChild(confirmBtn);
+    chatWindow.appendChild(wrap);
     scrollToBottom();
   }
 
@@ -353,22 +485,18 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
     typingRow = document.createElement("div");
     typingRow.className = "msg-row bot";
     typingRow.innerHTML =
-      '<div class="bubble typing-indicator"><span></span><span></span><span></span></div>';
+      '<div class="avatar">🌱</div><div class="bubble typing-indicator"><span></span><span></span><span></span></div>';
     chatWindow.appendChild(typingRow);
     scrollToBottom();
   }
   function hideTyping() {
-    if (typingRow) {
-      typingRow.remove();
-      typingRow = null;
-    }
+    if (typingRow) { typingRow.remove(); typingRow = null; }
   }
 
   async function sendToBot(message, displayText) {
-    // displayText lets a button tap show its human-readable title in the
-    // transcript ("Paris") rather than the raw payload
-    // (/inform{"destination": "Paris"}).
-    addBubble("user", displayText !== undefined ? displayText : message);
+    if (displayText !== "") {
+      addBubble("user", displayText !== undefined ? displayText : message);
+    }
     textInput.value = "";
     sendBtn.disabled = true;
     showTyping();
@@ -379,34 +507,31 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sender: senderId, message: message }),
       });
-
-      if (!response.ok) {
-        throw new Error("Server responded with " + response.status);
-      }
+      if (!response.ok) throw new Error("Server responded with " + response.status);
 
       const messages = await response.json();
       hideTyping();
 
       messages.forEach((msg) => {
         if (msg.text) {
+          updateProgress(msg.text);
           const rendered =
             tryRenderTransportCard(msg.text) ||
             tryRenderAlertCard(msg.text) ||
             tryRenderHandoverCard(msg.text);
-          if (!rendered) {
-            addBubble("bot", msg.text);
+          if (!rendered) addBubble("bot", msg.text);
+
+          if (msg.text.includes("When are you planning to travel")) {
+            const row = msg.buttons ? addButtons(msg.buttons) : null;
+            addDatePicker(row);
+            return;
           }
         }
-        if (msg.buttons) {
-          addButtons(msg.buttons);
-        }
+        if (msg.buttons) addButtons(msg.buttons);
       });
     } catch (err) {
       hideTyping();
-      addBubble(
-        "bot",
-        "Sorry, I'm having trouble connecting right now. Please try again in a moment."
-      );
+      addBubble("bot", "Sorry, I'm having trouble connecting right now. Please try again in a moment.");
       console.error("EcoVoyage Advisor: request failed", err);
     } finally {
       sendBtn.disabled = false;
@@ -418,7 +543,6 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
     const value = textInput.value.trim();
     if (value) sendToBot(value);
   });
-
   textInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       const value = textInput.value.trim();
@@ -426,20 +550,8 @@ const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
     }
   });
 
-  // Kick off the conversation automatically on page load, same as
-  // rasa shell greeting when you type "hi" — makes the web widget feel
-  // alive immediately rather than showing a blank chat window.
   window.addEventListener("DOMContentLoaded", () => {
-    sendToBot("/session_start" , "");
-    // /session_start isn't a real intent; harmless no-op if unrecognised.
-    // Real greeting flow starts once the user sends their first message,
-    // but we proactively show the greeting here for a friendlier first
-    // impression:
-    chatWindow.innerHTML = "";
-    addBubble(
-      "bot",
-      "Hi! I'm EcoVoyage Advisor. I can help you plan a lower-carbon trip and estimate its footprint. Ready to start?"
-    );
+    addBubble("bot", "Hi! I'm EcoVoyage Advisor. I can help you plan a lower-carbon trip and estimate its footprint. Ready to start?");
     addButtons([{ title: "Plan a trip", payload: "/plan_trip" }]);
     textInput.focus();
   });

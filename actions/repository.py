@@ -145,6 +145,7 @@ def save_trip_session(
     origin_city_id: int | None,
     destination_city_id: int | None,
     travel_date: str | None,
+    trip_duration_days: int | None,
     num_travellers: int | None,
     budget_tier: str | None,
     sustainability_pref: str | None,

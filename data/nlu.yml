@@ -187,6 +187,7 @@ nlu:
     - edit my [sustainability preference](field_to_edit)
     - I made a mistake with the [destination](field_to_edit)
     - let me fix the [budget](field_to_edit)
+    - I want to change my trip duration
 
 - intent: reset_trip
   examples: |

@@ -121,6 +121,15 @@ slots:
         conditions:
           - active_loop: trip_planning_form
             requested_slot: sustainability_pref
+  trip_duration_days:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: from_text
+        not_intent: *control_intents
+        conditions:
+          - active_loop: trip_planning_form
+            requested_slot: trip_duration_days
 
   # --- Data slots, written by custom actions only ---
   estimated_co2:
@@ -160,6 +169,7 @@ forms:
       - origin
       - destination
       - travel_date
+      - trip_duration_days
       - num_travellers
       - budget
       - sustainability_pref
@@ -220,6 +230,18 @@ responses:
       buttons:
         - title: "I'm flexible"
           payload: '/inform{{"travel_date": "flexible"}}'
+
+  utter_ask_trip_duration_days:
+    - text: "Great — how many days are you planning to travel for?"
+      buttons:
+        - title: "2 days"
+          payload: '/inform{{"trip_duration_days": "2"}}'
+        - title: "3 days"
+          payload: '/inform{{"trip_duration_days": "3"}}'
+        - title: "5 days"
+          payload: '/inform{{"trip_duration_days": "5"}}'
+        - title: "7 days"
+          payload: '/inform{{"trip_duration_days": "7"}}'
 
   utter_ask_num_travellers:
     - text: "How many people are travelling? Pick a number, or type a phrase like \"me and my partner\"."

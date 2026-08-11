@@ -73,6 +73,7 @@ REQUIRED_SLOTS_ORDER = [
     "origin",
     "destination",
     "travel_date",
+    "trip_duration_days",
     "num_travellers",
     "budget",
     "sustainability_pref",
@@ -96,6 +97,8 @@ FIELD_TO_SLOT = {
     "budget": "budget",
     "sustainability preference": "sustainability_pref",
     "preference": "sustainability_pref",
+    "trip duration": "trip_duration_days",
+    "duration": "trip_duration_days",
 }
 
 
@@ -132,6 +135,31 @@ def _parse_traveller_count(raw: str) -> Optional[int]:
 
     if "me and" in text or "and my" in text:
         return 2
+
+    return None
+
+def _parse_trip_duration(raw: str) -> Optional[int]:
+    """Parses phrases like '3', '3 days', 'a week', 'weekend' into a
+    number of days. Returns None if unparseable."""
+    text = raw.lower().strip()
+
+    if "weekend" in text:
+        return 2
+    if "week" in text:
+        return 7
+
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if digits:
+        try:
+            n = int(digits)
+            if 1 <= n <= 90:
+                return n
+        except ValueError:
+            pass
+
+    for word, value in _NUMBER_WORDS.items():
+        if word in text:
+            return value
 
     return None
 
@@ -399,6 +427,17 @@ class ValidateTripPlanningForm(FormValidationAction):
             return {"travel_date": "flexible"}
         return {"travel_date": str(slot_value).strip()}
 
+    async def validate_trip_duration_days(
+        self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
+    ) -> Dict[Text, Any]:
+        parsed = _parse_trip_duration(str(slot_value))
+        if parsed is None:
+            dispatcher.utter_message(
+                text="Sorry, how many days? A number works, or something like 'a week' or 'weekend'."
+            )
+            return {"trip_duration_days": None}
+        return {"trip_duration_days": parsed}
+
     async def validate_num_travellers(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> Dict[Text, Any]:
@@ -531,10 +570,12 @@ class ActionRecommendPlan(Action):
         num_travellers = tracker.get_slot("num_travellers") or 1
         sustainability_pref = tracker.get_slot("sustainability_pref") or "balanced"
 
+        duration = tracker.get_slot("trip_duration_days")
+        duration_text = f" for {duration} day{'s' if duration != 1 else ''}" if duration else ""
         dispatcher.utter_message(
             text=(
                 f"Recommended transport: {mode} ({distance_km} km, ~€{price_eur} total, "
-                f"~{co2_kg} kg CO2e — {carbon_level})"
+                f"~{co2_kg} kg CO2e — {carbon_level}){duration_text}"
             )
         )
 
@@ -579,6 +620,7 @@ class ActionRecommendPlan(Action):
             origin_city_id=origin_city["id"],
             destination_city_id=destination_city["id"],
             travel_date=tracker.get_slot("travel_date"),
+            trip_duration_days=duration,
             num_travellers=num_travellers,
             budget_tier=tracker.get_slot("budget"),
             sustainability_pref=sustainability_pref,
