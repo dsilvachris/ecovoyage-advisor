@@ -1,14 +1,451 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>EcoVoyage Advisor</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EcoVoyage Advisor</title>
+<style>
+  :root {
+    --green: #2e7d32;
+    --green-bg: #e8f5e9;
+    --amber: #ef6c00;
+    --amber-bg: #fff3e0;
+    --red: #c62828;
+    --red-bg: #ffebee;
+    --primary: #1b6b52;
+    --primary-dark: #14503d;
+    --bg: #f5f7f6;
+    --bot-bubble: #ffffff;
+    --user-bubble: #1b6b52;
+    --border: #dfe6e2;
+    --text: #1c2b26;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    z-index: 2;
+  }
+  header .logo { font-size: 22px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header .subtitle { font-size: 12px; opacity: 0.85; margin-left: auto; }
+
+  #handover-banner {
+    display: none;
+    background: #263238;
+    color: #fff;
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  #handover-banner.active { display: block; }
+
+  #chat-window {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .msg-row { display: flex; }
+  .msg-row.user { justify-content: flex-end; }
+  .msg-row.bot { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.4;
+    font-size: 14.5px;
+    white-space: pre-wrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .bot .bubble {
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .user .bubble {
+    background: var(--user-bubble);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+
+  /* Colour-coded transport recommendation card */
+  .transport-card {
+    max-width: 78%;
+    border-radius: 12px;
+    padding: 12px 14px;
+    border-left: 6px solid var(--border);
+    background: var(--bot-bubble);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    font-size: 14px;
+  }
+  .transport-card.green { border-left-color: var(--green); background: var(--green-bg); }
+  .transport-card.amber { border-left-color: var(--amber); background: var(--amber-bg); }
+  .transport-card.red   { border-left-color: var(--red); background: var(--red-bg); }
+  .transport-card .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+  }
+  .transport-card.green .pill { background: var(--green); color: white; }
+  .transport-card.amber .pill { background: var(--amber); color: white; }
+  .transport-card.red .pill   { background: var(--red); color: white; }
+
+  /* High-emission alert */
+  .alert-card {
+    max-width: 78%;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--red-bg);
+    border: 1px solid var(--red);
+    color: #7f1d1d;
+    font-size: 14px;
+  }
+  .alert-card .alert-title { font-weight: 700; margin-bottom: 4px; }
+
+  /* Handover confirmation card */
+  .handover-card {
+    max-width: 78%;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #eef2ff;
+    border: 1px solid #6366f1;
+    color: #312e81;
+    font-size: 14px;
+  }
+
+  .buttons-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+    max-width: 78%;
+  }
+  .btn-chip {
+    background: white;
+    border: 1.5px solid var(--primary);
+    color: var(--primary);
+    padding: 7px 14px;
+    border-radius: 18px;
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-chip:hover { background: var(--primary); color: white; }
+  .btn-chip:disabled { opacity: 0.4; cursor: default; }
+
+  #input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 12px;
+    background: white;
+    border-top: 1px solid var(--border);
+  }
+  #text-input {
+    flex: 1;
+    padding: 11px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 14.5px;
+    outline: none;
+  }
+  #text-input:focus { border-color: var(--primary); }
+  #send-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 0 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #send-btn:hover { background: var(--primary-dark); }
+  #send-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 10px 14px;
+  }
+  .typing-indicator span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #9aa8a2;
+    animation: blink 1.2s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+</style>
 </head>
 <body>
-  <!-- STATUS: scaffold only. Chat UI (quick-replies, colour-coded result
-       cards, high-emission alert, handover indicator) to be built in Task 3/4.
-       Will call location.origin + "/webhooks/rest/webhook" so it works
-       identically in local Docker and on Render without CORS config. -->
-  <h1>EcoVoyage Advisor — coming soon</h1>
+
+<header>
+  <span class="logo">🌍</span>
+  <h1>EcoVoyage Advisor</h1>
+  <span class="subtitle">Sustainable trip planning</span>
+</header>
+
+<div id="handover-banner">🧑‍💼 You're connected with a human travel advisor</div>
+
+<div id="chat-window" role="log" aria-live="polite"></div>
+
+<div id="input-bar">
+  <input
+    id="text-input"
+    type="text"
+    placeholder="Type a message…"
+    aria-label="Message"
+    autocomplete="off"
+  />
+  <button id="send-btn" aria-label="Send message">Send</button>
+</div>
+
+<script>
+(function () {
+  // Same-origin REST endpoint — works identically whether this page is
+  // served locally via docker compose or on Render, since nginx proxies
+  // /webhooks/ to the Rasa server on the same host (see deploy/nginx.conf).
+  // No hardcoded localhost URL, no CORS configuration needed.
+  const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
+
+  // A persistent sender id per browser, so returning users keep their
+  // conversation (matches domain.yml's carry_over_slots_to_new_session).
+  const SENDER_ID_KEY = "ecovoyage_sender_id";
+  let senderId = localStorage.getItem(SENDER_ID_KEY);
+  if (!senderId) {
+    senderId = "web-" + Math.random().toString(36).slice(2) + Date.now();
+    localStorage.setItem(SENDER_ID_KEY, senderId);
+  }
+
+  const chatWindow = document.getElementById("chat-window");
+  const textInput = document.getElementById("text-input");
+  const sendBtn = document.getElementById("send-btn");
+  const handoverBanner = document.getElementById("handover-banner");
+
+  function scrollToBottom() {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+
+  function addBubble(sender, text) {
+    const row = document.createElement("div");
+    row.className = "msg-row " + sender;
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.textContent = text;
+    row.appendChild(bubble);
+    chatWindow.appendChild(row);
+    scrollToBottom();
+  }
+
+  // Parses "Recommended transport: train (495.0 km, ~€89.4 total,
+  // ~29.7 kg CO2e — green)" into a colour-coded card. Falls back to a
+  // plain bubble if the text doesn't match the expected shape — the
+  // backend (action_recommend_plan) always produces this exact format,
+  // but staying defensive here means a future wording tweak degrades
+  // gracefully instead of silently breaking the UI.
+  function tryRenderTransportCard(text) {
+    const match = text.match(/^Recommended transport: (.+) — (green|amber|red)\)$/s);
+    if (!match) return false;
+
+    const body = match[1];
+    const level = match[2];
+
+    const row = document.createElement("div");
+    row.className = "msg-row bot";
+    const card = document.createElement("div");
+    card.className = "transport-card " + level;
+
+    const pill = document.createElement("div");
+    pill.className = "pill";
+    pill.textContent = level === "green" ? "Low carbon" : level === "amber" ? "Moderate carbon" : "High carbon";
+    card.appendChild(pill);
+
+    const detail = document.createElement("div");
+    detail.textContent = body + ")";
+    card.appendChild(detail);
+
+    row.appendChild(card);
+    chatWindow.appendChild(row);
+    scrollToBottom();
+    return true;
+  }
+
+  function tryRenderAlertCard(text) {
+    if (!text.startsWith("Heads up")) return false;
+    const row = document.createElement("div");
+    row.className = "msg-row bot";
+    const card = document.createElement("div");
+    card.className = "alert-card";
+    const title = document.createElement("div");
+    title.className = "alert-title";
+    title.textContent = "⚠️ High-emission route";
+    card.appendChild(title);
+    const body = document.createElement("div");
+    body.textContent = text;
+    card.appendChild(body);
+    row.appendChild(card);
+    chatWindow.appendChild(row);
+    scrollToBottom();
+    return true;
+  }
+
+  function tryRenderHandoverCard(text) {
+    if (!text.includes("passed your details to a human travel advisor")) return false;
+    handoverBanner.classList.add("active");
+    const row = document.createElement("div");
+    row.className = "msg-row bot";
+    const card = document.createElement("div");
+    card.className = "handover-card";
+    card.textContent = "🧑‍💼 " + text;
+    row.appendChild(card);
+    chatWindow.appendChild(row);
+    scrollToBottom();
+    return true;
+  }
+
+  function addButtons(buttons) {
+    if (!buttons || buttons.length === 0) return;
+    const row = document.createElement("div");
+    row.className = "buttons-row";
+    buttons.forEach((btn) => {
+      const chip = document.createElement("button");
+      chip.className = "btn-chip";
+      chip.textContent = btn.title;
+      chip.addEventListener("click", () => {
+        // Disable every chip in this row once one is tapped, so a user
+        // can't double-submit while the request is in flight.
+        row.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+        sendToBot(btn.payload, btn.title);
+      });
+      row.appendChild(chip);
+    });
+    chatWindow.appendChild(row);
+    scrollToBottom();
+  }
+
+  let typingRow = null;
+  function showTyping() {
+    typingRow = document.createElement("div");
+    typingRow.className = "msg-row bot";
+    typingRow.innerHTML =
+      '<div class="bubble typing-indicator"><span></span><span></span><span></span></div>';
+    chatWindow.appendChild(typingRow);
+    scrollToBottom();
+  }
+  function hideTyping() {
+    if (typingRow) {
+      typingRow.remove();
+      typingRow = null;
+    }
+  }
+
+  async function sendToBot(message, displayText) {
+    // displayText lets a button tap show its human-readable title in the
+    // transcript ("Paris") rather than the raw payload
+    // (/inform{"destination": "Paris"}).
+    addBubble("user", displayText !== undefined ? displayText : message);
+    textInput.value = "";
+    sendBtn.disabled = true;
+    showTyping();
+
+    try {
+      const response = await fetch(REST_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sender: senderId, message: message }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Server responded with " + response.status);
+      }
+
+      const messages = await response.json();
+      hideTyping();
+
+      messages.forEach((msg) => {
+        if (msg.text) {
+          const rendered =
+            tryRenderTransportCard(msg.text) ||
+            tryRenderAlertCard(msg.text) ||
+            tryRenderHandoverCard(msg.text);
+          if (!rendered) {
+            addBubble("bot", msg.text);
+          }
+        }
+        if (msg.buttons) {
+          addButtons(msg.buttons);
+        }
+      });
+    } catch (err) {
+      hideTyping();
+      addBubble(
+        "bot",
+        "Sorry, I'm having trouble connecting right now. Please try again in a moment."
+      );
+      console.error("EcoVoyage Advisor: request failed", err);
+    } finally {
+      sendBtn.disabled = false;
+      textInput.focus();
+    }
+  }
+
+  sendBtn.addEventListener("click", () => {
+    const value = textInput.value.trim();
+    if (value) sendToBot(value);
+  });
+
+  textInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      const value = textInput.value.trim();
+      if (value) sendToBot(value);
+    }
+  });
+
+  // Kick off the conversation automatically on page load, same as
+  // rasa shell greeting when you type "hi" — makes the web widget feel
+  // alive immediately rather than showing a blank chat window.
+  window.addEventListener("DOMContentLoaded", () => {
+    sendToBot("/session_start" , "");
+    // /session_start isn't a real intent; harmless no-op if unrecognised.
+    // Real greeting flow starts once the user sends their first message,
+    // but we proactively show the greeting here for a friendlier first
+    // impression:
+    chatWindow.innerHTML = "";
+    addBubble(
+      "bot",
+      "Hi! I'm EcoVoyage Advisor. I can help you plan a lower-carbon trip and estimate its footprint. Ready to start?"
+    );
+    addButtons([{ title: "Plan a trip", payload: "/plan_trip" }]);
+    textInput.focus();
+  });
+})();
+</script>
+
 </body>
 </html>
