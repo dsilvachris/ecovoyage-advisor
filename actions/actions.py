@@ -763,13 +763,20 @@ class ActionHandover(Action):
 class ActionScopedFallback(Action):
     """Context-aware fallback (FR-10): inside the form, re-asks the SAME
     question the user just failed to answer by dispatching that slot's own
-    utter_ask_<slot> response directly, then returns control to
-    action_listen so the user gets a genuine chance to reply before
-    anything runs again. Deliberately does NOT use FollowupAction to
-    re-invoke the form immediately — that re-validates the SAME stale
-    message with no new input, which can spin repeatedly within a single
-    turn until Rasa's internal action-count safety cap cuts it off (this
-    was a real bug found during live testing, not a hypothetical)."""
+    utter_ask_<slot> response directly.
+
+    CRITICAL: explicitly returns FollowupAction("action_listen") to force
+    the turn to end immediately after speaking. Without this, a real
+    infinite-loop bug was found during live testing: when this action
+    returns no events at all, the tracker state is completely unchanged
+    from the moment before it ran, so Core re-predicts the next action
+    from that identical state, gets the identical low-confidence result
+    from RulePolicy's core_fallback_threshold safety net, and fires this
+    same action again — repeating until Rasa's circuit breaker (a fixed
+    action-count cap, not a graceful stop) forcibly cuts the turn off
+    mid-loop, producing many duplicate messages in one response. Forcing
+    action_listen guarantees the loop cannot continue past one iteration,
+    regardless of how policy confidence behaves on this tracker state."""
 
     def name(self) -> Text:
         return "action_scoped_fallback"
@@ -784,7 +791,7 @@ class ActionScopedFallback(Action):
                 dispatcher.utter_message(response=utter_name)
             else:
                 dispatcher.utter_message(response="utter_ask_rephrase")
-            return []
+        else:
+            dispatcher.utter_message(response="utter_ask_rephrase")
 
-        dispatcher.utter_message(response="utter_ask_rephrase")
-        return []
+        return [FollowupAction("action_listen")]
