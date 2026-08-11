@@ -89,6 +89,7 @@ CREATE TABLE trip_session (
     origin_city_id      INTEGER REFERENCES city(id),
     destination_city_id INTEGER REFERENCES city(id),
     travel_date         TEXT,                              -- free text; may be a real date or "flexible"
+    trip_duration_days  INTEGER,
     num_travellers      INTEGER,
     budget_tier         TEXT,                              -- 'budget' | 'mid' | 'comfort'
     sustainability_pref TEXT,                              -- 'low_carbon' | 'eco_certified' | 'local_culture' | 'balanced'
