@@ -31,19 +31,115 @@
     color: var(--text);
   }
 
-  /* Centered "app" frame, like a phone-width widget rather than a full page */
-  #app-frame {
-    max-width: 480px;
+  /* Two-column layout: chat on the left, live trip summary on the right.
+     Collapses to chat-only + a toggleable summary drawer on narrow screens. */
+  #layout {
+    display: flex;
+    justify-content: center;
     height: 100vh;
+    max-width: 900px;
     margin: 0 auto;
+  }
+
+  #app-frame {
+    width: 480px;
+    max-width: 100vw;
+    height: 100vh;
     background: var(--bg);
     display: flex;
     flex-direction: column;
     box-shadow: 0 0 40px rgba(0,0,0,0.08);
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
   }
-  @media (min-width: 481px) {
-    body { display: flex; justify-content: center; }
-    #app-frame { height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+  #summary-panel {
+    width: 300px;
+    flex-shrink: 0;
+    background: white;
+    border-right: 1px solid var(--border);
+    padding: 20px 18px;
+    overflow-y: auto;
+    display: none;
+  }
+  @media (min-width: 800px) {
+    #summary-panel { display: block; order: -1; } /* summary on the left, chat on the right */
+  }
+  #summary-panel.mobile-open { display: block; position: fixed; inset: 0; z-index: 10; width: 100%; }
+
+  #summary-panel h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 16px 0;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .summary-row .label {
+    font-size: 11.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+  .summary-row .value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .summary-row .value.placeholder {
+    font-weight: 400;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .summary-row .edit-btn {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+    border-radius: 6px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .summary-row .edit-btn:hover { background: var(--green-bg); }
+  .summary-row .edit-btn:disabled { opacity: 0.25; cursor: default; }
+  .summary-row .edit-btn:disabled:hover { background: none; }
+
+  #summary-close {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--muted);
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    cursor: pointer;
+  }
+  #summary-panel.mobile-open #summary-close { display: block; }
+
+  #summary-toggle {
+    display: none;
+    background: rgba(255,255,255,0.18);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  @media (max-width: 799px) {
+    #summary-toggle { display: inline-block; }
   }
 
   header {
@@ -215,7 +311,6 @@
   .btn-chip:active { transform: scale(0.96); }
   .btn-chip:disabled { opacity: 0.35; cursor: default; }
 
-  /* Date picker row, shown alongside the "I'm flexible" button */
   .date-picker-row {
     display: flex;
     align-items: center;
@@ -291,29 +386,40 @@
 </head>
 <body>
 
-<div id="app-frame">
-  <header>
-    <div class="avatar-badge">🌍</div>
-    <div class="titles">
-      <h1>EcoVoyage Advisor</h1>
-      <span class="subtitle">Sustainable trip planning</span>
+<div id="layout">
+
+  <div id="summary-panel">
+    <button id="summary-close" aria-label="Close summary">✕</button>
+    <h2>Your trip so far</h2>
+    <div id="summary-rows"></div>
+  </div>
+
+  <div id="app-frame">
+    <header>
+      <div class="avatar-badge">🌍</div>
+      <div class="titles">
+        <h1>EcoVoyage Advisor</h1>
+        <span class="subtitle">Sustainable trip planning</span>
+      </div>
+      <button id="summary-toggle">📋 Trip</button>
+    </header>
+
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+    <div id="handover-banner">🧑‍💼 You're connected with a human travel advisor</div>
+
+    <div id="chat-window" role="log" aria-live="polite"></div>
+
+    <div id="input-bar">
+      <input id="text-input" type="text" placeholder="Type a message…" aria-label="Message" autocomplete="off" />
+      <button id="send-btn" aria-label="Send message">Send</button>
     </div>
-  </header>
-
-  <div id="progress-bar"><div id="progress-fill"></div></div>
-  <div id="handover-banner">🧑‍💼 You're connected with a human travel advisor</div>
-
-  <div id="chat-window" role="log" aria-live="polite"></div>
-
-  <div id="input-bar">
-    <input id="text-input" type="text" placeholder="Type a message…" aria-label="Message" autocomplete="off" />
-    <button id="send-btn" aria-label="Send message">Send</button>
   </div>
 </div>
 
 <script>
 (function () {
-const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
+  const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
+
   const SENDER_ID_KEY = "ecovoyage_sender_id";
   let senderId = localStorage.getItem(SENDER_ID_KEY);
   if (!senderId) {
@@ -327,28 +433,84 @@ const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
   const handoverBanner = document.getElementById("handover-banner");
   const progressBar = document.getElementById("progress-bar");
   const progressFill = document.getElementById("progress-fill");
+  const summaryPanel = document.getElementById("summary-panel");
+  const summaryRows = document.getElementById("summary-rows");
+  const summaryToggle = document.getElementById("summary-toggle");
+  const summaryClose = document.getElementById("summary-close");
 
-  // Tracks progress through the 6-question trip-planning form, purely for
-  // the visual progress bar — not read by the bot, just pattern-matched
-  // from the question text so the frontend needs no backend changes.
+  summaryToggle.addEventListener("click", () => summaryPanel.classList.add("mobile-open"));
+  summaryClose.addEventListener("click", () => summaryPanel.classList.remove("mobile-open"));
+
+  // Ordered form steps. `match` is a substring of the bot's question used
+  // to detect which slot is currently being asked (the REST webhook only
+  // returns message text, never raw slot values, so the summary panel
+  // tracks state client-side by remembering the last question asked and
+  // capturing the user's next reply as that field's answer).
+  // `editPhrase` matches the wording trained in data/nlu.yml's edit_answer
+  // examples (see actions.py's FIELD_TO_SLOT mapping) so the edit pencil
+  // sends a message the model can actually resolve to the right slot.
   const FORM_STEPS = [
-    "Where are you travelling from",
-    "Which destination would you like",
-    "When are you planning to travel",
-    "How many people are travelling",
-    "What's your rough daily budget",
-    "Last question: what matters most",
+    { key: "origin", match: "Where are you travelling from", label: "From", editPhrase: "origin" },
+    { key: "destination", match: "Which destination would you like", label: "To", editPhrase: "destination" },
+    { key: "travel_date", match: "When are you planning to travel", label: "Dates", editPhrase: "travel date" },
+    { key: "trip_duration_days", match: "how many days are you planning to travel for", label: "Duration", editPhrase: "trip duration" },
+    { key: "num_travellers", match: "How many people are travelling", label: "Travellers", editPhrase: "number of travellers" },
+    { key: "budget", match: "What's your rough daily budget", label: "Budget", editPhrase: "budget" },
+    { key: "sustainability_pref", match: "Last question: what matters most", label: "Priority", editPhrase: "sustainability preference" },
   ];
+
+  let tripState = {};        // { origin: "Berlin", destination: "Copenhagen", ... }
+  let currentAskedField = null;
+
+  function detectAskedField(botText) {
+    const step = FORM_STEPS.find((s) => botText.includes(s.match));
+    return step ? step.key : null;
+  }
+
+  function renderSummaryPanel() {
+    summaryRows.innerHTML = "";
+    FORM_STEPS.forEach((step) => {
+      const value = tripState[step.key];
+      const row = document.createElement("div");
+      row.className = "summary-row";
+
+      const left = document.createElement("div");
+      const labelEl = document.createElement("div");
+      labelEl.className = "label";
+      labelEl.textContent = step.label;
+      const valueEl = document.createElement("div");
+      valueEl.className = "value" + (value ? "" : " placeholder");
+      valueEl.textContent = value || "Not set yet";
+      left.appendChild(labelEl);
+      left.appendChild(valueEl);
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "edit-btn";
+      editBtn.textContent = "✎";
+      editBtn.title = "Edit " + step.label.toLowerCase();
+      editBtn.disabled = !value;
+      editBtn.addEventListener("click", () => {
+        if (!value) return;
+        summaryPanel.classList.remove("mobile-open");
+        sendToBot("I want to change my " + step.editPhrase, "Edit " + step.label);
+      });
+
+      row.appendChild(left);
+      row.appendChild(editBtn);
+      summaryRows.appendChild(row);
+    });
+  }
+  renderSummaryPanel();
+
+  const PROGRESS_STEPS = FORM_STEPS.map((s) => s.match);
   function updateProgress(botText) {
-    const stepIndex = FORM_STEPS.findIndex((q) => botText.includes(q));
+    const stepIndex = PROGRESS_STEPS.findIndex((m) => botText.includes(m));
     if (stepIndex === -1) {
-      if (botText.includes("Recommended transport") || !progressBar.classList.contains("active")) {
-        progressBar.classList.remove("active");
-      }
+      if (botText.includes("Recommended transport")) progressBar.classList.remove("active");
       return;
     }
     progressBar.classList.add("active");
-    progressFill.style.width = Math.round(((stepIndex + 1) / FORM_STEPS.length) * 100) + "%";
+    progressFill.style.width = Math.round(((stepIndex + 1) / PROGRESS_STEPS.length) * 100) + "%";
   }
 
   function scrollToBottom() {
@@ -373,10 +535,6 @@ const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
   }
 
   function tryRenderTransportCard(text) {
-    // Allows optional trailing text after the closing paren (e.g. the
-    // " for 3 days" duration suffix added to action_recommend_plan's
-    // message) — the color card should still render, just with that
-    // extra text appended inside it.
     const match = text.match(/^Recommended transport: (.+) — (green|amber|red)\)(.*)$/s);
     if (!match) return false;
     const body = match[1];
@@ -445,10 +603,6 @@ const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
     return row;
   }
 
-  // Adds a native date input next to the quick-reply row, only when the
-  // bot's question is the travel-date one. Sends the chosen date as plain
-  // text (e.g. "2026-09-15") — validate_travel_date in actions.py accepts
-  // any non-empty string as-is, no backend change required.
   function addDatePicker(buttonsRow) {
     const wrap = document.createElement("div");
     wrap.className = "date-picker-row";
@@ -499,6 +653,13 @@ const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
   }
 
   async function sendToBot(message, displayText) {
+    // Capture this reply as the answer to whichever field was just asked,
+    // before sending — this is what actually populates the summary panel.
+    if (currentAskedField) {
+      tripState[currentAskedField] = (displayText !== undefined && displayText !== "") ? displayText : message;
+      renderSummaryPanel();
+    }
+
     if (displayText !== "") {
       addBubble("user", displayText !== undefined ? displayText : message);
     }
@@ -520,6 +681,17 @@ const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
       messages.forEach((msg) => {
         if (msg.text) {
           updateProgress(msg.text);
+
+          if (msg.text.includes("I've cleared your trip")) {
+            tripState = {};
+            currentAskedField = null;
+            renderSummaryPanel();
+          } else {
+            const detected = detectAskedField(msg.text);
+            if (detected) currentAskedField = detected;
+            else if (msg.text.includes("Recommended transport")) currentAskedField = null;
+          }
+
           const rendered =
             tryRenderTransportCard(msg.text) ||
             tryRenderAlertCard(msg.text) ||
