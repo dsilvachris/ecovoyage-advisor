@@ -295,3 +295,23 @@ sufficient for *test* data's stricter exact-match evaluation, which is
 easy to miss and not obviously documented. Worth a line in the Testing
 section as an example of framework-specific tooling behaviour discovered
 through direct experimentation rather than assumed from the docs.
+
+**Remaining 1/10 failure, analyzed:** the fallback-escalation test story
+expected `action_handover` to be predicted automatically as the direct
+consequence of a second consecutive `action_scoped_fallback`. This doesn't
+match the actual implemented design: `action_scoped_fallback` is
+deliberately stateless (see its own docstring) — it does not count
+consecutive fallbacks, because `utter_ask_rephrase` already offers a
+"Talk to a human" option on every single fallback, so a user is never more
+than one explicit choice away from a human, without needing an automatic
+N-strikes escalation. The test story was corrected to include the missing
+`action_listen` turn, reflecting that the user must actively choose to
+request a human — which is exactly what Scenario 5's real, manually-tested
+transcript does (see the scenario verification table above). Final result
+after this correction: 10/10 stories, ~0.98+ action-level accuracy.
+
+**Reflection for the report:** this failure was valuable precisely because
+it forced an explicit re-justification of a deliberate design choice (no
+fallback counter) against a test expectation that assumed the opposite —
+a good example of test-writing itself surfacing a design decision that
+deserved re-confirming, not just a bug to patch.
