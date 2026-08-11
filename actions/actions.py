@@ -92,13 +92,13 @@ FIELD_TO_SLOT = {
     "destination": "destination",
     "travel date": "travel_date",
     "dates": "travel_date",
+    "trip duration": "trip_duration_days",
+    "duration": "trip_duration_days",
     "number of travellers": "num_travellers",
     "travellers": "num_travellers",
     "budget": "budget",
     "sustainability preference": "sustainability_pref",
     "preference": "sustainability_pref",
-    "trip duration": "trip_duration_days",
-    "duration": "trip_duration_days",
 }
 
 

@@ -180,14 +180,26 @@ nlu:
 - intent: edit_answer
   examples: |
     - I want to change my [destination](field_to_edit)
+    - I want to change my [origin](field_to_edit)
+    - I want to change my [travel date](field_to_edit)
+    - I want to change my [trip duration](field_to_edit)
+    - I want to change my [number of travellers](field_to_edit)
+    - I want to change my [budget](field_to_edit)
+    - I want to change my [sustainability preference](field_to_edit)
     - can I edit the [budget](field_to_edit)
+    - can I edit the [origin](field_to_edit)
     - change my [origin](field_to_edit)
+    - change my [destination](field_to_edit)
     - I'd like to edit the [travel date](field_to_edit)
+    - I'd like to edit the [trip duration](field_to_edit)
     - can we change the [number of travellers](field_to_edit)
+    - can we change the [sustainability preference](field_to_edit)
     - edit my [sustainability preference](field_to_edit)
+    - edit my [budget](field_to_edit)
     - I made a mistake with the [destination](field_to_edit)
+    - I made a mistake with the [origin](field_to_edit)
     - let me fix the [budget](field_to_edit)
-    - I want to change my trip duration
+    - let me fix the [travel date](field_to_edit)
 
 - intent: reset_trip
   examples: |
