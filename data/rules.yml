@@ -62,3 +62,5 @@ rules:
   steps:
   - intent: edit_answer
   - action: action_edit_answer
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
