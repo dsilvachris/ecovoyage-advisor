@@ -232,8 +232,7 @@
   // served locally via docker compose or on Render, since nginx proxies
   // /webhooks/ to the Rasa server on the same host (see deploy/nginx.conf).
   // No hardcoded localhost URL, no CORS configuration needed.
-  const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
-
+const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
   // A persistent sender id per browser, so returning users keep their
   // conversation (matches domain.yml's carry_over_slots_to_new_session).
   const SENDER_ID_KEY = "ecovoyage_sender_id";
