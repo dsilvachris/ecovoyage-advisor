@@ -351,3 +351,35 @@ retry. This is stronger evidence for "technical robustness" (Task 5's
 assessment criterion) than a single clean run would have been on its own,
 since it shows the testing process itself catching and correctly
 diagnosing distinct classes of problems.
+
+## pytest unit tests — mocked success/failure/edge cases
+
+Run: `pytest tests/ -v`
+
+**Result: 23/23 passed.**
+
+Coverage by module:
+
+| Module | Success case | Failure/fallback case | Edge case(s) |
+|---|---|---|---|
+| `carbon.py` | Climatiq responds correctly | Climatiq times out -> stored fallback | Flight never attempts Climatiq (scope exclusion); carbon_level threshold boundaries |
+| `routing.py` | Curated distance used when available; OpenRouteService succeeds for car | ORS fails -> haversine+detour estimate | Train never attempts ORS (no rail profile); haversine sanity check against a known real value |
+| `geo.py` | Nearest-city GPS match | No OpenCage key -> degrades gracefully, city match still works | Typo match confirms a real typo; typo match correctly rejects unrelated input (critical for FR-03, not just returning a random near-match) |
+| Free-text parsing (`actions.py`) | Digit and exact-value parsing | — | Phrase-word parsing ("family of four" — direct regression test for the Scenario 4 bug); genuinely unparseable input returns None rather than guessing |
+
+**One real bug found while wiring up these tests (not in the logic being
+tested, but in the test harness itself):** the first version of
+`test_actions.py` imported `actions/*.py` modules as bare top-level names
+(`import geo`), which failed with `ImportError: attempted relative import
+with no known parent package` — because `geo.py` internally uses a
+relative import (`from .routing import haversine_km`) that only resolves
+correctly when Python loads it as part of the `actions` package, exactly
+as `rasa-sdk` does at runtime. Fixed by importing everything through the
+package (`from actions import geo`) and updating all `@patch(...)` target
+strings to match (`actions.carbon.requests.post`, not `carbon.requests.post`).
+
+**Reflection for the report:** this is the same underlying category of
+issue as an earlier bug in `actions.py` itself (relative vs. absolute
+imports inside a package — see the bug log above) — a good demonstration
+that Python's package/import model needs to be understood consistently
+across both the application code and its test suite, not just once.
