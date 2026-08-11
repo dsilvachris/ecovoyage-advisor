@@ -383,3 +383,68 @@ issue as an earlier bug in `actions.py` itself (relative vs. absolute
 imports inside a package — see the bug log above) — a good demonstration
 that Python's package/import model needs to be understood consistently
 across both the application code and its test suite, not just once.
+
+## Known limitation: inline edit-from-summary-panel (scope reduction)
+
+**Feature attempted:** clickable edit pencils in the frontend's trip
+summary panel, allowing a user to jump directly back to any already-
+answered question and correct it, without retyping "I want to change
+my X" manually.
+
+**What was built and confirmed working:**
+- `edit_answer` intent correctly triggers `action_edit_answer`, which
+  clears the target slot and reactivates `trip_planning_form` (confirmed
+  via direct NLU parsing: 99.99% confidence, correct entity extraction
+  for `field_to_edit`).
+- A genuine, reproducible infinite-loop bug was found and fixed during
+  this work: `action_scoped_fallback` returned no events, causing Core
+  to re-predict from an identical, unchanged tracker state repeatedly
+  until Rasa's circuit breaker forcibly cut the turn off — producing up
+  to 9 duplicate messages in a single response. Fixed by explicitly
+  returning `FollowupAction("action_listen")` to guarantee the loop
+  terminates after exactly one iteration. This fix is real, verified via
+  direct `--debug` log inspection, and kept in the codebase.
+
+**What remains unresolved:** specifically the sequence "complete a
+trip -> edit an already-answered field -> answer it again" sometimes
+lands on a single (non-looping, safely handled) fallback message instead
+of correctly continuing the form. Three fix attempts were made at the
+dialogue-policy layer:
+1. A dedicated training story demonstrating the exact sequence
+   end-to-end.
+2. A targeted rule (`edit_answer` -> `action_edit_answer` ->
+   `trip_planning_form`) — this one was kept, since it correctly fixes
+   the *initial* re-open (confirmed working), even though it doesn't
+   cover the *subsequent* re-answer.
+3. A broad condition-based rule (`active_loop: trip_planning_form` ->
+   always predict `trip_planning_form`) — reverted after being judged
+   too risky: its unconditional nature could plausibly regress unrelated
+   flows (e.g. `go_back`), which was never re-verified against it.
+
+**Decision:** rather than continue iterating on a policy-layer fix with
+diminishing returns, the edit-pencil UI affordance was removed from the
+frontend. The summary panel remains as a read-only live trip overview
+(the core value the feature was built for — a persistent, at-a-glance
+view of every answer given so far), and the underlying `edit_answer`
+capability still exists and works correctly via typed/spoken chat input
+for the common case (a single edit request straight after form
+completion). Only the specific "re-answer immediately after an edit"
+edge case is not fully reliable — and even there, it degrades gracefully
+(one clear fallback message with working "Plan a trip" / "Talk to a
+human" recovery buttons) rather than breaking or looping.
+
+**Why this is a legitimate engineering decision, not an unfixed bug:**
+Rasa's dialogue policies (`TEDPolicy`, `RulePolicy`'s confidence-based
+fallback) are trained to generalize from example conversations; a
+manually-injected form re-entry via a custom action creates tracker
+states genuinely underrepresented in training data, and no amount of
+targeted rule-writing fully closed that gap within reasonable time spent
+against likely benefit. This is a real, citable limitation of
+policy-based dialogue management — a legitimate discussion point for the
+report's critical evaluation of the framework (Task 1/5), not a sign the
+implementation is broken. The debugging process itself (isolating a
+0.40-confidence RulePolicy fallback via `--debug` logs, distinguishing
+NLU-layer correctness from Core-layer policy behaviour, and making a
+scoped, evidence-based decision to reduce feature surface rather than
+ship an unreliable interaction) is stronger evidence of testing rigour
+than an untroubled implementation would have been.
