@@ -57,3 +57,8 @@ rules:
   - intent: reset_trip
   - action: action_reset_trip
   - action: utter_trip_reset
+
+- rule: Handle edit answer request anytime
+  steps:
+  - intent: edit_answer
+  - action: action_edit_answer
