@@ -159,7 +159,10 @@
     border-radius: 12px;
     padding: 12px 14px;
     margin-bottom: 10px;
+    cursor: pointer;
+    transition: box-shadow 0.15s;
   }
+  .history-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
   .history-card .route {
     font-weight: 700;
     font-size: 14px;
@@ -175,6 +178,31 @@
     color: var(--green);
     font-weight: 600;
     margin-top: 4px;
+  }
+
+  .replay-banner {
+    background: #eef2ff;
+    border: 1px solid #6366f1;
+    color: #312e81;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .replay-banner button {
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
   #reset-trip-btn {
@@ -407,6 +435,7 @@
     outline: none;
   }
   #text-input:focus { border-color: var(--primary); }
+  #text-input:disabled { background: var(--bg); color: var(--muted); }
   #send-btn {
     background: var(--primary);
     color: white;
@@ -518,6 +547,9 @@
 
   let tripState = {};        // { origin: "Berlin", destination: "Copenhagen", ... }
   let currentAskedField = null;
+  let currentTranscript = []; // [{sender: "user"|"bot", text: string}, ...] for the in-progress trip
+  let viewingHistory = false;
+  let savedLiveSession = null; // {tripState, currentAskedField, transcript} stashed while viewing history
 
   function detectAskedField(botText) {
     const step = FORM_STEPS.find((s) => botText.includes(s.match));
@@ -563,6 +595,7 @@
       travellers: state.num_travellers,
       co2: state.__lastCo2Text || null,
       savedAt: new Date().toISOString(),
+      transcript: currentTranscript.slice(),
     });
     tripHistory = tripHistory.slice(0, 10);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(tripHistory));
@@ -581,6 +614,7 @@
     tripHistory.forEach((trip) => {
       const card = document.createElement("div");
       card.className = "history-card";
+      card.addEventListener("click", () => viewPastTrip(trip));
 
       const route = document.createElement("div");
       route.className = "route";
@@ -687,6 +721,76 @@
     chatWindow.appendChild(card);
     scrollToBottom();
     return true;
+  }
+
+  // Single dispatch point used for BOTH live bot messages and replaying a
+  // stored transcript (history view / restoring live chat) — guarantees
+  // replay looks identical to how the message originally rendered.
+  function renderIncomingMessage(text) {
+    const rendered =
+      tryRenderTransportCard(text) ||
+      tryRenderAlertCard(text) ||
+      tryRenderHandoverCard(text);
+    if (!rendered) addBubble("bot", text);
+  }
+
+  function replayTranscript(transcript) {
+    chatWindow.innerHTML = "";
+    transcript.forEach((entry) => {
+      if (entry.sender === "user") {
+        addBubble("user", entry.text);
+      } else {
+        renderIncomingMessage(entry.text);
+      }
+    });
+  }
+
+  function viewPastTrip(trip) {
+    if (!trip.transcript || trip.transcript.length === 0) return;
+
+    if (!viewingHistory) {
+      savedLiveSession = {
+        tripState: { ...tripState },
+        currentAskedField,
+        transcript: currentTranscript.slice(),
+      };
+    }
+    viewingHistory = true;
+
+    chatWindow.innerHTML = "";
+    const banner = document.createElement("div");
+    banner.className = "replay-banner";
+    banner.innerHTML = "<span>📖 Viewing a saved trip</span>";
+    const backBtn = document.createElement("button");
+    backBtn.textContent = "← Back to live chat";
+    backBtn.addEventListener("click", returnToLiveChat);
+    banner.appendChild(backBtn);
+    chatWindow.appendChild(banner);
+
+    trip.transcript.forEach((entry) => {
+      if (entry.sender === "user") addBubble("user", entry.text);
+      else renderIncomingMessage(entry.text);
+    });
+
+    textInput.disabled = true;
+    sendBtn.disabled = true;
+    textInput.placeholder = "Viewing a saved trip — tap 'Back to live chat' to continue";
+  }
+
+  function returnToLiveChat() {
+    viewingHistory = false;
+    textInput.disabled = false;
+    sendBtn.disabled = false;
+    textInput.placeholder = "Type a message…";
+
+    if (savedLiveSession) {
+      tripState = savedLiveSession.tripState;
+      currentAskedField = savedLiveSession.currentAskedField;
+      currentTranscript = savedLiveSession.transcript;
+      renderSummaryPanel();
+      replayTranscript(currentTranscript);
+      savedLiveSession = null;
+    }
   }
 
   function addButtons(buttons) {
@@ -837,7 +941,9 @@
     }
 
     if (displayText !== "") {
-      addBubble("user", displayText !== undefined ? displayText : message);
+      const userText = displayText !== undefined ? displayText : message;
+      addBubble("user", userText);
+      currentTranscript.push({ sender: "user", text: userText });
     }
     textInput.value = "";
     sendBtn.disabled = true;
@@ -862,6 +968,7 @@
             saveTripToHistory(tripState);
             tripState = {};
             currentAskedField = null;
+            currentTranscript = [];
             renderSummaryPanel();
           } else {
             const detected = detectAskedField(msg.text);
@@ -869,11 +976,8 @@
             else if (msg.text.includes("Recommended transport")) currentAskedField = null;
           }
 
-          const rendered =
-            tryRenderTransportCard(msg.text) ||
-            tryRenderAlertCard(msg.text) ||
-            tryRenderHandoverCard(msg.text);
-          if (!rendered) addBubble("bot", msg.text);
+          renderIncomingMessage(msg.text);
+          currentTranscript.push({ sender: "bot", text: msg.text });
 
           if (msg.text.includes("When are you planning to travel")) {
             const row = msg.buttons ? addButtons(msg.buttons) : null;
@@ -913,6 +1017,7 @@
   });
 
   window.addEventListener("DOMContentLoaded", () => {
+    currentTranscript = [];
     addBubble("bot", "Hi! I'm EcoVoyage Advisor. I can help you plan a lower-carbon trip and estimate its footprint. Ready to start?");
     addButtons([{ title: "Plan a trip", payload: "/plan_trip" }]);
     textInput.focus();
