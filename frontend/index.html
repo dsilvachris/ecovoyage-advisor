@@ -627,6 +627,44 @@
     scrollToBottom();
   }
 
+  // Sends geo:LAT,LON as plain text — actions.py's _resolve_city_input
+  // already parses this format and resolves it to the nearest supported
+  // city (FR-02), no backend change needed here at all.
+  function addLocationButton(buttonsRow) {
+    if (!navigator.geolocation) return; // silently skip on unsupported browsers
+
+    const row = document.createElement("div");
+    row.className = "buttons-row";
+
+    const chip = document.createElement("button");
+    chip.className = "btn-chip";
+    chip.textContent = "📍 Use my location";
+    chip.addEventListener("click", () => {
+      chip.disabled = true;
+      chip.textContent = "📍 Getting your location…";
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (buttonsRow) {
+            buttonsRow.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+          }
+          const { latitude, longitude } = position.coords;
+          sendToBot(`geo:${latitude},${longitude}`, "📍 Use my location");
+        },
+        () => {
+          chip.disabled = false;
+          chip.textContent = "📍 Use my location";
+          addBubble("bot", "I couldn't access your location — please tap a city above or type one instead.");
+        },
+        { timeout: 8000 }
+      );
+    });
+
+    row.appendChild(chip);
+    chatWindow.appendChild(row);
+    scrollToBottom();
+  }
+
   let typingRow = null;
   function showTyping() {
     typingRow = document.createElement("div");
@@ -689,6 +727,11 @@
           if (msg.text.includes("When are you planning to travel")) {
             const row = msg.buttons ? addButtons(msg.buttons) : null;
             addDatePicker(row);
+            return;
+          }
+          if (msg.text.includes("Where are you travelling from")) {
+            const row = msg.buttons ? addButtons(msg.buttons) : null;
+            addLocationButton(row);
             return;
           }
         }
