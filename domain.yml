@@ -196,93 +196,93 @@ responses:
   utter_ask_origin:
     - text: "Where are you travelling from? Tap a city, use your current location, or type any of our supported cities."
       buttons:
-        - title: "London"
-          payload: '/inform{{"origin": "London"}}'
-        - title: "Paris"
-          payload: '/inform{{"origin": "Paris"}}'
-        - title: "Madrid"
-          payload: '/inform{{"origin": "Madrid"}}'
-        - title: "Rome"
-          payload: '/inform{{"origin": "Rome"}}'
-        - title: "Berlin"
+        - title: "🇩🇪 Berlin"
           payload: '/inform{{"origin": "Berlin"}}'
-        - title: "Barcelona"
-          payload: '/inform{{"origin": "Barcelona"}}'
-        - title: "Amsterdam"
+        - title: "🇫🇷 Paris"
+          payload: '/inform{{"origin": "Paris"}}'
+        - title: "🇬🇧 London"
+          payload: '/inform{{"origin": "London"}}'
+        - title: "🇳🇱 Amsterdam"
           payload: '/inform{{"origin": "Amsterdam"}}'
-        - title: "Vienna"
-          payload: '/inform{{"origin": "Vienna"}}'
-        - title: "Prague"
-          payload: '/inform{{"origin": "Prague"}}'
-        - title: "Lisbon"
-          payload: '/inform{{"origin": "Lisbon"}}'
-        - title: "Copenhagen"
+        - title: "🇩🇰 Copenhagen"
           payload: '/inform{{"origin": "Copenhagen"}}'
-        - title: "Dublin"
+        - title: "🇪🇸 Madrid"
+          payload: '/inform{{"origin": "Madrid"}}'
+        - title: "🇮🇹 Rome"
+          payload: '/inform{{"origin": "Rome"}}'
+        - title: "🇪🇸 Barcelona"
+          payload: '/inform{{"origin": "Barcelona"}}'
+        - title: "🇦🇹 Vienna"
+          payload: '/inform{{"origin": "Vienna"}}'
+        - title: "🇨🇿 Prague"
+          payload: '/inform{{"origin": "Prague"}}'
+        - title: "🇵🇹 Lisbon"
+          payload: '/inform{{"origin": "Lisbon"}}'
+        - title: "🇮🇪 Dublin"
           payload: '/inform{{"origin": "Dublin"}}'
-        - title: "Cape Town"
+        - title: "🇿🇦 Cape Town"
           payload: '/inform{{"origin": "Cape Town"}}'
-        - title: "Nairobi"
+        - title: "🇰🇪 Nairobi"
           payload: '/inform{{"origin": "Nairobi"}}'
-        - title: "Tokyo"
+        - title: "🇯🇵 Tokyo"
           payload: '/inform{{"origin": "Tokyo"}}'
-        - title: "Bangkok"
+        - title: "🇹🇭 Bangkok"
           payload: '/inform{{"origin": "Bangkok"}}'
-        - title: "New York"
+        - title: "🇺🇸 New York"
           payload: '/inform{{"origin": "New York"}}'
-        - title: "Toronto"
+        - title: "🇨🇦 Toronto"
           payload: '/inform{{"origin": "Toronto"}}'
-        - title: "Rio de Janeiro"
+        - title: "🇧🇷 Rio de Janeiro"
           payload: '/inform{{"origin": "Rio de Janeiro"}}'
-        - title: "Bogotá"
+        - title: "🇨🇴 Bogotá"
           payload: '/inform{{"origin": "Bogotá"}}'
-        - title: "Sydney"
+        - title: "🇦🇺 Sydney"
           payload: '/inform{{"origin": "Sydney"}}'
 
   utter_ask_destination:
     - text: "Which destination would you like to explore? Tap one or type any of our supported cities."
       buttons:
-        - title: "London"
-          payload: '/inform{{"destination": "London"}}'
-        - title: "Paris"
-          payload: '/inform{{"destination": "Paris"}}'
-        - title: "Madrid"
-          payload: '/inform{{"destination": "Madrid"}}'
-        - title: "Rome"
-          payload: '/inform{{"destination": "Rome"}}'
-        - title: "Berlin"
+        - title: "🇩🇪 Berlin"
           payload: '/inform{{"destination": "Berlin"}}'
-        - title: "Barcelona"
-          payload: '/inform{{"destination": "Barcelona"}}'
-        - title: "Amsterdam"
+        - title: "🇫🇷 Paris"
+          payload: '/inform{{"destination": "Paris"}}'
+        - title: "🇬🇧 London"
+          payload: '/inform{{"destination": "London"}}'
+        - title: "🇳🇱 Amsterdam"
           payload: '/inform{{"destination": "Amsterdam"}}'
-        - title: "Vienna"
-          payload: '/inform{{"destination": "Vienna"}}'
-        - title: "Prague"
-          payload: '/inform{{"destination": "Prague"}}'
-        - title: "Lisbon"
-          payload: '/inform{{"destination": "Lisbon"}}'
-        - title: "Copenhagen"
+        - title: "🇩🇰 Copenhagen"
           payload: '/inform{{"destination": "Copenhagen"}}'
-        - title: "Dublin"
+        - title: "🇪🇸 Madrid"
+          payload: '/inform{{"destination": "Madrid"}}'
+        - title: "🇮🇹 Rome"
+          payload: '/inform{{"destination": "Rome"}}'
+        - title: "🇪🇸 Barcelona"
+          payload: '/inform{{"destination": "Barcelona"}}'
+        - title: "🇦🇹 Vienna"
+          payload: '/inform{{"destination": "Vienna"}}'
+        - title: "🇨🇿 Prague"
+          payload: '/inform{{"destination": "Prague"}}'
+        - title: "🇵🇹 Lisbon"
+          payload: '/inform{{"destination": "Lisbon"}}'
+        - title: "🇮🇪 Dublin"
           payload: '/inform{{"destination": "Dublin"}}'
-        - title: "Cape Town"
+        - title: "🇿🇦 Cape Town"
           payload: '/inform{{"destination": "Cape Town"}}'
-        - title: "Nairobi"
+        - title: "🇰🇪 Nairobi"
           payload: '/inform{{"destination": "Nairobi"}}'
-        - title: "Tokyo"
+        - title: "🇯🇵 Tokyo"
           payload: '/inform{{"destination": "Tokyo"}}'
-        - title: "Bangkok"
+        - title: "🇹🇭 Bangkok"
           payload: '/inform{{"destination": "Bangkok"}}'
-        - title: "New York"
+        - title: "🇺🇸 New York"
           payload: '/inform{{"destination": "New York"}}'
-        - title: "Toronto"
+        - title: "🇨🇦 Toronto"
           payload: '/inform{{"destination": "Toronto"}}'
-        - title: "Rio de Janeiro"
+        - title: "🇧🇷 Rio de Janeiro"
           payload: '/inform{{"destination": "Rio de Janeiro"}}'
-        - title: "Bogotá"
+        - title: "🇨🇴 Bogotá"
           payload: '/inform{{"destination": "Bogotá"}}'
-        - title: "Sydney"
+        - title: "🇦🇺 Sydney"
           payload: '/inform{{"destination": "Sydney"}}'
 
   utter_ask_travel_date:
