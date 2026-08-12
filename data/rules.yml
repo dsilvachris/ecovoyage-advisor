@@ -64,3 +64,10 @@ rules:
   - action: action_edit_answer
   - action: trip_planning_form
   - active_loop: trip_planning_form
+
+- rule: Continue filling the form whenever the user answers a question
+  condition:
+  - active_loop: trip_planning_form
+  steps:
+  - intent: inform
+  - action: trip_planning_form
