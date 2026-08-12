@@ -216,7 +216,7 @@ def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
             if not cities:
                 return {"status": "none"}
             resolved = geo.resolve_gps_location(lat, lon, cities)
-            return {"status": "exact", "name": resolved["city_name"]}
+            return {"status": "exact", "name": resolved["city_name"], "via_gps": True}
         except (ValueError, IndexError):
             return {"status": "none"}
 
@@ -380,6 +380,10 @@ class ValidateTripPlanningForm(FormValidationAction):
         result = _resolve_city_input(raw)
 
         if result["status"] == "exact":
+            if result.get("via_gps"):
+                dispatcher.utter_message(
+                    text=f"📍 We've detected your location near {result['name']} — setting that as your departure city."
+                )
             return {"origin": result["name"]}
         if result["status"] == "fuzzy":
             _dispatch_city_confirmation(dispatcher, "origin", result["guess"])
