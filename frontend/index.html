@@ -363,6 +363,59 @@
     animation: riseIn 0.22s ease-out;
   }
 
+  .options-card {
+    max-width: 76%;
+    margin-left: 34px;
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    font-size: 13.5px;
+    animation: riseIn 0.22s ease-out;
+  }
+  .options-card .options-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 10px;
+  }
+  .options-card .option-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
+  .options-card .option-row:last-child { border-bottom: none; }
+  .options-card .option-main { font-weight: 600; }
+  .options-card .option-detail { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .options-card .option-tag {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 8px;
+    background: var(--green-bg);
+    color: var(--green);
+    flex-shrink: 0;
+  }
+
+  .offset-card {
+    max-width: 76%;
+    margin-left: 34px;
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: #f0fdf4;
+    border: 1px solid var(--green);
+    font-size: 13.5px;
+    animation: riseIn 0.22s ease-out;
+  }
+  .offset-card .options-title { color: var(--green); }
+
   .buttons-row {
     display: flex;
     flex-wrap: wrap;
@@ -723,6 +776,137 @@
     return true;
   }
 
+  // "Getting there — X to Y (sorted by...) — N day trip:\n1. Flight — ...\n2. Train — ..."
+  function tryRenderTransportOptionsCard(text) {
+    if (!text.startsWith("Getting there —")) return false;
+    const lines = text.split("\n");
+    const title = lines[0];
+    const rows = lines.slice(1);
+
+    const card = document.createElement("div");
+    card.className = "options-card";
+    const titleEl = document.createElement("div");
+    titleEl.className = "options-title";
+    titleEl.textContent = title;
+    card.appendChild(titleEl);
+
+    rows.forEach((row) => {
+      const match = row.match(/^\d+\.\s*(.+?)\s*—\s*(.+?)\s*—\s*(.+?)\s*—\s*(.+?)(\s*\[RECOMMENDED\])?$/);
+      const rowEl = document.createElement("div");
+      rowEl.className = "option-row";
+      if (match) {
+        const [, mode, dist, price, carbon, tag] = match;
+        const left = document.createElement("div");
+        const main = document.createElement("div");
+        main.className = "option-main";
+        main.textContent = mode;
+        const detail = document.createElement("div");
+        detail.className = "option-detail";
+        detail.textContent = `${dist} · ${price} · ${carbon}`;
+        left.appendChild(main);
+        left.appendChild(detail);
+        rowEl.appendChild(left);
+        if (tag) {
+          const tagEl = document.createElement("span");
+          tagEl.className = "option-tag";
+          tagEl.textContent = "Recommended";
+          rowEl.appendChild(tagEl);
+        }
+      } else {
+        rowEl.textContent = row;
+      }
+      card.appendChild(rowEl);
+    });
+
+    chatWindow.appendChild(card);
+    scrollToBottom();
+    return true;
+  }
+
+  // "Eco-friendly stays in X:\n1. Hotel — cert — price [BEST MATCH]"
+  // "Low-impact experiences in X:\n- Name (~€price)"
+  function tryRenderListCard(text) {
+    const isHotels = text.startsWith("Eco-friendly stays in");
+    const isExperiences = text.startsWith("Low-impact experiences in");
+    if (!isHotels && !isExperiences) return false;
+
+    const lines = text.split("\n");
+    const title = lines[0];
+    const rows = lines.slice(1);
+
+    const card = document.createElement("div");
+    card.className = "options-card";
+    const titleEl = document.createElement("div");
+    titleEl.className = "options-title";
+    titleEl.textContent = title;
+    card.appendChild(titleEl);
+
+    rows.forEach((row) => {
+      const rowEl = document.createElement("div");
+      rowEl.className = "option-row";
+
+      const hotelMatch = row.match(/^\d+\.\s*(.+?)\s*—\s*(.+?)\s*—\s*(.+?)(\s*\[BEST MATCH\])?$/);
+      const expMatch = row.match(/^-\s*(.+?)\s*\((.+?)\)$/);
+
+      if (hotelMatch) {
+        const [, name, cert, price, tag] = hotelMatch;
+        const left = document.createElement("div");
+        const main = document.createElement("div");
+        main.className = "option-main";
+        main.textContent = name;
+        const detail = document.createElement("div");
+        detail.className = "option-detail";
+        detail.textContent = `${cert} · ${price}`;
+        left.appendChild(main);
+        left.appendChild(detail);
+        rowEl.appendChild(left);
+        if (tag) {
+          const tagEl = document.createElement("span");
+          tagEl.className = "option-tag";
+          tagEl.textContent = "Best match";
+          rowEl.appendChild(tagEl);
+        }
+      } else if (expMatch) {
+        const [, name, price] = expMatch;
+        const left = document.createElement("div");
+        left.className = "option-main";
+        left.textContent = `${name} (${price})`;
+        rowEl.appendChild(left);
+      } else {
+        rowEl.textContent = row;
+      }
+      card.appendChild(rowEl);
+    });
+
+    chatWindow.appendChild(card);
+    scrollToBottom();
+    return true;
+  }
+
+  // "Offset the rest:\n- Provider (type) — approx. €X/tonne"
+  function tryRenderOffsetCard(text) {
+    if (!text.startsWith("Offset the rest:")) return false;
+    const lines = text.split("\n");
+
+    const card = document.createElement("div");
+    card.className = "offset-card";
+    const titleEl = document.createElement("div");
+    titleEl.className = "options-title";
+    titleEl.textContent = "🌱 Offset the rest";
+    card.appendChild(titleEl);
+
+    lines.slice(1).forEach((row) => {
+      const rowEl = document.createElement("div");
+      rowEl.className = "option-row";
+      rowEl.textContent = row.replace(/^-\s*/, "");
+      card.appendChild(rowEl);
+    });
+
+    chatWindow.appendChild(card);
+    scrollToBottom();
+    return true;
+  }
+
   // Single dispatch point used for BOTH live bot messages and replaying a
   // stored transcript (history view / restoring live chat) — guarantees
   // replay looks identical to how the message originally rendered.
@@ -730,7 +914,10 @@
     const rendered =
       tryRenderTransportCard(text) ||
       tryRenderAlertCard(text) ||
-      tryRenderHandoverCard(text);
+      tryRenderHandoverCard(text) ||
+      tryRenderTransportOptionsCard(text) ||
+      tryRenderListCard(text) ||
+      tryRenderOffsetCard(text);
     if (!rendered) addBubble("bot", text);
   }
 
