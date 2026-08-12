@@ -52,8 +52,24 @@ RESOLVED DESIGN DECISIONS:
    No cross-turn slot dependency at all — action_clarify_destination is
    kept registered only for symmetry with domain.yml/stories.yml, and now
    does nothing (see its docstring).
-"""
 
+6. Multi-option recommendations: ActionRecommendPlan originally showed only
+   the single winning transport option and single best hotel. Reworked to
+   show up to 3 ranked transport options, up to 3 ranked hotels, and up to
+   2 experiences, matching the reference demo's "Getting there /
+   Eco-friendly stays / Low-impact experiences / Offset the rest" layout.
+   The winning option is still what's used for carbon_level/estimated_co2
+   (and hence FR-07's alert trigger) — showing more options is purely
+   additive, not a change to which one is "recommended". A new slot,
+   transport_options_json, carries the top-3 transport summary from
+   ActionEstimateCarbon to ActionRecommendPlan as a JSON string (same
+   pattern as the existing recommended_mode/distance/price slots, just
+   holding a list instead of a single value). Offset options are now
+   always shown at the end of every recommendation, not only on red-carbon
+   routes — the red-carbon alert's own offset mention was removed to avoid
+   showing the same list twice.
+"""
+import json
 import logging
 from typing import Any, Text, Dict, List, Optional
 
@@ -325,15 +341,17 @@ def _score_transport_options(
     return options
 
 
-def _score_hotels(
-    hotels: List[Dict[str, Any]], sustainability_pref: str
-) -> Optional[Dict[str, Any]]:
-    """Picks the best hotel per FR-06's weighting, using carbon_score as the
-    carbon proxy and nightly_price_estimate as the price proxy. Returns None
-    if no hotels are seeded for this destination yet (db/seed.sql's hotel
-    coverage is currently sparse — expand during further Task 4 work)."""
+def _score_hotels_ranked(
+    hotels: List[Dict[str, Any]], sustainability_pref: str, top_n: int = 3
+) -> List[Dict[str, Any]]:
+    """Ranks all hotels for a destination per FR-06's weighting, returning
+    up to top_n. Most destinations currently have only 1-2 hotels seeded
+    (db/seed.sql coverage is sparse — see its own docstring), so this
+    often just returns everything available, ranked. Replaces the earlier
+    single-winner _score_hotels now that ActionRecommendPlan shows a
+    ranked list rather than just the top pick."""
     if not hotels:
-        return None
+        return []
 
     max_carbon = max(float(h["carbon_score"]) for h in hotels) or 0.0001
     max_price = max(float(h["nightly_price_estimate"]) for h in hotels) or 0.0001
@@ -347,7 +365,7 @@ def _score_hotels(
         scored.append((score, h))
 
     scored.sort(key=lambda pair: pair[0])
-    return scored[0][1]
+    return [h for _, h in scored[:top_n]]
 
 
 # --------------------------------------------------------------------------
@@ -508,6 +526,17 @@ class ActionEstimateCarbon(Action):
             return []
 
         winner = options[0]
+        top_options = options[:3]
+        options_summary = [
+            {
+                "mode": o["mode_name"],
+                "distance_km": o["distance_km"],
+                "price_eur": o["price_total_eur"],
+                "co2_kg": o["co2e_total_kg"],
+                "carbon_level": o["carbon_level"],
+            }
+            for o in top_options
+        ]
 
         return [
             SlotSet("estimated_co2", winner["co2e_total_kg"]),
@@ -516,13 +545,14 @@ class ActionEstimateCarbon(Action):
             SlotSet("recommended_mode", winner["mode_name"]),
             SlotSet("recommended_distance_km", winner["distance_km"]),
             SlotSet("recommended_price_eur", winner["price_total_eur"]),
+            SlotSet("transport_options_json", json.dumps(options_summary)),
         ]
 
 
 # --------------------------------------------------------------------------
-# Recommendation (FR-04, FR-07) — hotels, experience, transport summary,
-# the high-emission alert, and the single point where aviation.py is
-# called (only when flight is the winner)
+# Recommendation (FR-04, FR-07) — hotels, experiences, transport comparison,
+# the high-emission alert, offsets, and the single point where aviation.py
+# is called (only when flight is the winner)
 # --------------------------------------------------------------------------
 
 def _dispatch_high_emission_alert_if_needed(
@@ -541,14 +571,9 @@ def _dispatch_high_emission_alert_if_needed(
             "carbon-intensive. You might consider offsetting the footprint."
         )
     )
-
-    offsets = repository.get_offset_options()
-    if offsets:
-        lines = [
-            f"- {o['provider_name']} ({o['project_type']}) — approx. €{o['estimated_cost_per_tonne']}/tonne"
-            for o in offsets[:2]
-        ]
-        dispatcher.utter_message(text="\n".join(lines))
+    # Offset options are now always listed at the end of the recommendation
+    # (see ActionRecommendPlan's "Offset the rest" section below), not
+    # duplicated here — see module docstring, point 6.
 
 
 class ActionRecommendPlan(Action):
@@ -567,21 +592,35 @@ class ActionRecommendPlan(Action):
         _dispatch_high_emission_alert_if_needed(dispatcher, tracker)
 
         mode = tracker.get_slot("recommended_mode")
-        distance_km = tracker.get_slot("recommended_distance_km")
-        price_eur = tracker.get_slot("recommended_price_eur")
         co2_kg = tracker.get_slot("estimated_co2")
         carbon_level = tracker.get_slot("carbon_level")
         num_travellers = tracker.get_slot("num_travellers") or 1
         sustainability_pref = tracker.get_slot("sustainability_pref") or "balanced"
-
         duration = tracker.get_slot("trip_duration_days")
-        duration_text = f" for {duration} day{'s' if duration != 1 else ''}" if duration else ""
-        dispatcher.utter_message(
-            text=(
-                f"Recommended transport: {mode} ({distance_km} km, ~€{price_eur} total, "
-                f"~{co2_kg} kg CO2e — {carbon_level}){duration_text}"
-            )
-        )
+
+        # --- Transport comparison (up to 3 options, ranked) ---
+        options_json = tracker.get_slot("transport_options_json")
+        try:
+            top_options = json.loads(options_json) if options_json else []
+        except (TypeError, ValueError):
+            top_options = []
+
+        duration_suffix = f" — {duration} day trip" if duration else ""
+
+        if top_options:
+            lines = [
+                f"Getting there — {origin_city['name']} to {destination_city['name']} "
+                f"(sorted by your priority: {sustainability_pref}){duration_suffix}:"
+            ]
+            for i, o in enumerate(top_options, start=1):
+                tag = " [RECOMMENDED]" if i == 1 else ""
+                lines.append(
+                    f"{i}. {o['mode'].capitalize()} — {o['distance_km']} km, "
+                    f"~€{o['price_eur']} total, ~{o['co2_kg']} kg CO2e — {o['carbon_level']}{tag}"
+                )
+            dispatcher.utter_message(text="\n".join(lines))
+        else:
+            dispatcher.utter_message(text="I couldn't retrieve transport options for this route.")
 
         # Only call Aviationstack when flight is the actual winner — the
         # "call sparingly" quota decision from aviation.py's docstring.
@@ -596,28 +635,44 @@ class ActionRecommendPlan(Action):
                     )
                 )
 
+        # --- Hotels (up to 3, ranked) ---
         hotels = repository.get_hotels_for_destination(destination_city["id"])
-        best_hotel = _score_hotels(hotels, sustainability_pref)
-        if best_hotel:
-            cert = best_hotel.get("eco_certification") or "no formal certification"
-            dispatcher.utter_message(
-                text=(
-                    f"Suggested stay: {best_hotel['name']} ({cert}), "
-                    f"~€{best_hotel['nightly_price_estimate']}/night"
+        ranked_hotels = _score_hotels_ranked(hotels, sustainability_pref)
+        if ranked_hotels:
+            lines = [f"Eco-friendly stays in {destination_city['name']}:"]
+            for i, h in enumerate(ranked_hotels, start=1):
+                cert = h.get("eco_certification") or "no formal certification"
+                tag = " [BEST MATCH]" if i == 1 else ""
+                lines.append(
+                    f"{i}. {h['name']} — {cert} — ~€{h['nightly_price_estimate']}/night{tag}"
                 )
-            )
+            dispatcher.utter_message(text="\n".join(lines))
         else:
             dispatcher.utter_message(
                 text=f"I don't have curated hotel data for {destination_city['name']} yet — "
                      f"a human advisor can help find eco-certified options there."
             )
 
+        # --- Experiences (up to 2, ranked by community impact) ---
         experiences = repository.get_experiences_for_destination(destination_city["id"])
-        if experiences:
-            top_experience = experiences[0]
-            dispatcher.utter_message(
-                text=f"Local experience: {top_experience['name']} (~€{top_experience['estimated_price']})"
-            )
+        ranked_experiences = sorted(
+            experiences, key=lambda e: float(e.get("local_community_score") or 0), reverse=True
+        )[:2]
+        if ranked_experiences:
+            lines = [f"Low-impact experiences in {destination_city['name']}:"]
+            for e in ranked_experiences:
+                lines.append(f"- {e['name']} (~€{e['estimated_price']})")
+            dispatcher.utter_message(text="\n".join(lines))
+
+        # --- Offset the rest (always shown, not just on red-carbon routes) ---
+        offsets = repository.get_offset_options()
+        if offsets:
+            lines = ["Offset the rest:"]
+            for o in offsets[:2]:
+                lines.append(
+                    f"- {o['provider_name']} ({o['project_type']}) — approx. €{o['estimated_cost_per_tonne']}/tonne"
+                )
+            dispatcher.utter_message(text="\n".join(lines))
 
         repository.save_trip_session(
             sender_id=tracker.sender_id,
@@ -712,6 +767,7 @@ class ActionResetTrip(Action):
         slots_to_clear = REQUIRED_SLOTS_ORDER + [
             "estimated_co2", "carbon_level", "data_source",
             "recommended_mode", "recommended_distance_km", "recommended_price_eur",
+            "transport_options_json",
         ]
         return [SlotSet(s, None) for s in slots_to_clear] + [ActiveLoop(None)]
 

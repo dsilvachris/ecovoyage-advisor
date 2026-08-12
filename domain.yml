@@ -162,6 +162,12 @@ slots:
     influence_conversation: false
     mappings:
       - type: custom
+  
+  transport_options_json:
+    type: text
+    influence_conversation: false
+    mappings:
+      - type: custom
 
 forms:
   trip_planning_form:
@@ -377,3 +383,4 @@ responses:
 session_config:
   session_expiration_time: 60
   carry_over_slots_to_new_session: true
+
