@@ -245,3 +245,21 @@ stories:
     - carbon_level: green
   - action: action_recommend_plan
   - action: utter_carbon_disclaimer
+
+- story: reset trip then successfully plan and complete a new trip
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: reset_trip
+  - action: action_reset_trip
+  - action: utter_trip_reset
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - slot_was_set:
+    - carbon_level: green
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
