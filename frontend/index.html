@@ -987,6 +987,10 @@
       chip.className = "btn-chip";
       chip.textContent = btn.title;
       chip.addEventListener("click", () => {
+        // Guard: if a history replay is somehow still active when a live
+        // button is clicked, force back to live state first so the click
+        // never gets lost inside stale replay UI.
+        if (viewingHistory) returnToLiveChat();
         row.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
         const picker = row.parentElement.querySelector(".date-picker-row");
         if (picker) picker.querySelector("button").disabled = true;
@@ -1202,7 +1206,10 @@
   });
 
   window.addEventListener("DOMContentLoaded", () => {
+    viewingHistory = false;
+    savedLiveSession = null;
     currentTranscript = [];
+    chatWindow.innerHTML = "";
     addBubble("bot", "Hi! I'm EcoVoyage Advisor. I can help you plan a lower-carbon trip and estimate its footprint. Ready to start?");
     addButtons([{ title: "Plan a trip", payload: "/plan_trip" }]);
     textInput.focus();
