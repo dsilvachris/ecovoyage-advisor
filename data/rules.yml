@@ -1,14 +1,19 @@
 # Rules for EcoVoyage Advisor.
 # Rasa 3.6.x, used alongside RulePolicy (config.yml).
 #
-# Design note: form ACTIVATION is a rule (deterministic — plan_trip always
-# opens the form, regardless of context). Form SUBMISSION follow-up is
-# deliberately NOT a rule — what happens after the form completes branches
-# on carbon_level (green -> straight to recommendation, red -> alert first),
-# which rules can't express mid-sequence. That branching logic lives in
-# stories.yml instead, where TEDPolicy can learn it from slot_was_set
-# conditions. Everything below is a genuinely context-independent, single
-# fixed response — safe to declare as a rule.
+# Design note: form ACTIVATION and SUBMISSION are both rules (deterministic
+# — plan_trip always opens the form regardless of context, and completing
+# it always leads to action_estimate_carbon -> action_recommend_plan ->
+# utter_carbon_disclaimer, unconditionally). This used to be a story-only
+# concern because red/green carbon branching once meant two different
+# action sequences after the form — that's no longer true since
+# action_recommend_plan folds the high-emission alert check into a plain
+# Python conditional internally (see actions.py). Making submission a rule
+# fixed a real bug found in live testing: completing a SECOND or THIRD trip
+# in the same conversation (e.g. after using Reset) hit a tracker state
+# TEDPolicy had never seen enough examples of, triggering RulePolicy's
+# core_fallback_threshold safety net. A rule removes that guesswork
+# entirely — it now works identically on trip #1, #2, or #50.
 #
 # utter_carbon_disclaimer was tried as a rule here and reverted: a rule with
 # no condition is a strict global constraint (next action after
@@ -16,6 +21,7 @@
 # directly contradicts any story ending at action_recommend_plan (implicit
 # action_listen). Explicit placement in every story (stories.yml) is the
 # correct fix instead.
+
 
 version: "3.1"
 
@@ -71,3 +77,13 @@ rules:
   steps:
   - intent: inform
   - action: trip_planning_form
+
+- rule: Complete trip planning form and generate a recommendation
+  condition:
+  - active_loop: trip_planning_form
+  steps:
+  - action: trip_planning_form
+  - active_loop: null
+  - action: action_estimate_carbon
+  - action: action_recommend_plan
+  - action: utter_carbon_disclaimer
