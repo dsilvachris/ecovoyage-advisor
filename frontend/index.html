@@ -31,13 +31,13 @@
     color: var(--text);
   }
 
-  /* Two-column layout: chat on the left, live trip summary on the right.
-     Collapses to chat-only + a toggleable summary drawer on narrow screens. */
+  /* Three-column layout: trip history | chat | live trip summary.
+     Collapses progressively on narrower screens. */
   #layout {
     display: flex;
     justify-content: center;
     height: 100vh;
-    max-width: 900px;
+    max-width: 1160px;
     margin: 0 auto;
   }
 
@@ -99,20 +99,6 @@
     color: var(--muted);
     font-style: italic;
   }
-  .summary-row .edit-btn {
-    background: none;
-    border: none;
-    color: var(--primary);
-    cursor: pointer;
-    font-size: 14px;
-    padding: 4px;
-    border-radius: 6px;
-    line-height: 1;
-    flex-shrink: 0;
-  }
-  .summary-row .edit-btn:hover { background: var(--green-bg); }
-  .summary-row .edit-btn:disabled { opacity: 0.25; cursor: default; }
-  .summary-row .edit-btn:disabled:hover { background: none; }
 
   #summary-close {
     display: none;
@@ -141,6 +127,67 @@
   @media (max-width: 799px) {
     #summary-toggle { display: inline-block; }
   }
+
+  /* Trip history sidebar — furthest left, only shown on wide screens */
+  #history-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: white;
+    border-right: 1px solid var(--border);
+    padding: 20px 16px;
+    overflow-y: auto;
+    display: none;
+  }
+  @media (min-width: 1100px) {
+    #history-panel { display: block; order: -2; } /* history, then summary, then chat */
+  }
+  #history-panel h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 0 0 16px 0;
+  }
+  .history-empty {
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .history-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+  }
+  .history-card .route {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+  .history-card .meta {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .history-card .co2 {
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 600;
+    margin-top: 4px;
+  }
+
+  #reset-trip-btn {
+    background: rgba(255,255,255,0.18);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 6px;
+  }
+  #reset-trip-btn:hover { background: rgba(255,255,255,0.3); }
 
   header {
     background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
@@ -388,6 +435,11 @@
 
 <div id="layout">
 
+  <div id="history-panel">
+    <h2>Your trips</h2>
+    <div id="history-list"></div>
+  </div>
+
   <div id="summary-panel">
     <button id="summary-close" aria-label="Close summary">✕</button>
     <h2>Your trip so far</h2>
@@ -402,6 +454,7 @@
         <span class="subtitle">Sustainable trip planning</span>
       </div>
       <button id="summary-toggle">📋 Trip</button>
+      <button id="reset-trip-btn">↺ Reset</button>
     </header>
 
     <div id="progress-bar"><div id="progress-fill"></div></div>
@@ -418,6 +471,9 @@
 
 <script>
 (function () {
+  // NOTE: hardcoded for local testing without Docker/nginx in front.
+  // MUST be reverted to `window.location.origin + "/webhooks/rest/webhook"`
+  // before committing — see project notes on this recurring gotcha.
   const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
 
   const SENDER_ID_KEY = "ecovoyage_sender_id";
@@ -437,26 +493,27 @@
   const summaryRows = document.getElementById("summary-rows");
   const summaryToggle = document.getElementById("summary-toggle");
   const summaryClose = document.getElementById("summary-close");
+  const historyList = document.getElementById("history-list");
+  const resetTripBtn = document.getElementById("reset-trip-btn");
 
   summaryToggle.addEventListener("click", () => summaryPanel.classList.add("mobile-open"));
   summaryClose.addEventListener("click", () => summaryPanel.classList.remove("mobile-open"));
+  resetTripBtn.addEventListener("click", () => sendToBot("start over", "Reset trip"));
 
   // Ordered form steps. `match` is a substring of the bot's question used
   // to detect which slot is currently being asked (the REST webhook only
-  // returns message text, never raw slot values, so the summary panel
-  // tracks state client-side by remembering the last question asked and
-  // capturing the user's next reply as that field's answer).
-  // `editPhrase` matches the wording trained in data/nlu.yml's edit_answer
-  // examples (see actions.py's FIELD_TO_SLOT mapping) so the edit pencil
-  // sends a message the model can actually resolve to the right slot.
+  // returns message text, never raw slot values, so both the summary
+  // panel and trip history track state client-side by remembering the
+  // last question asked and capturing the user's next reply as that
+  // field's answer).
   const FORM_STEPS = [
-    { key: "origin", match: "Where are you travelling from", label: "From", editPhrase: "origin" },
-    { key: "destination", match: "Which destination would you like", label: "To", editPhrase: "destination" },
-    { key: "travel_date", match: "When are you planning to travel", label: "Dates", editPhrase: "travel date" },
-    { key: "trip_duration_days", match: "how many days are you planning to travel for", label: "Duration", editPhrase: "trip duration" },
-    { key: "num_travellers", match: "How many people are travelling", label: "Travellers", editPhrase: "number of travellers" },
-    { key: "budget", match: "What's your rough daily budget", label: "Budget", editPhrase: "budget" },
-    { key: "sustainability_pref", match: "Last question: what matters most", label: "Priority", editPhrase: "sustainability preference" },
+    { key: "origin", match: "Where are you travelling from", label: "From" },
+    { key: "destination", match: "Which destination would you like", label: "To" },
+    { key: "travel_date", match: "When are you planning to travel", label: "Dates" },
+    { key: "trip_duration_days", match: "how many days are you planning to travel for", label: "Duration" },
+    { key: "num_travellers", match: "How many people are travelling", label: "Travellers" },
+    { key: "budget", match: "What's your rough daily budget", label: "Budget" },
+    { key: "sustainability_pref", match: "Last question: what matters most", label: "Priority" },
   ];
 
   let tripState = {};        // { origin: "Berlin", destination: "Copenhagen", ... }
@@ -489,6 +546,63 @@
     });
   }
   renderSummaryPanel();
+
+  // --- Trip history (localStorage-persisted, no backend query needed) ---
+  const HISTORY_KEY = "ecovoyage_trip_history";
+  let tripHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+
+  function saveTripToHistory(state) {
+    const complete = FORM_STEPS.every((s) => state[s.key]);
+    if (!complete) return;
+
+    tripHistory.unshift({
+      from: state.origin,
+      to: state.destination,
+      dates: state.travel_date,
+      duration: state.trip_duration_days,
+      travellers: state.num_travellers,
+      co2: state.__lastCo2Text || null,
+      savedAt: new Date().toISOString(),
+    });
+    tripHistory = tripHistory.slice(0, 10);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(tripHistory));
+    renderHistoryPanel();
+  }
+
+  function renderHistoryPanel() {
+    historyList.innerHTML = "";
+    if (tripHistory.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "history-empty";
+      empty.textContent = "Your planned trips will appear here.";
+      historyList.appendChild(empty);
+      return;
+    }
+    tripHistory.forEach((trip) => {
+      const card = document.createElement("div");
+      card.className = "history-card";
+
+      const route = document.createElement("div");
+      route.className = "route";
+      route.textContent = `${trip.from} → ${trip.to}`;
+      card.appendChild(route);
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `${trip.dates} · ${trip.duration} day(s) · ${trip.travellers} traveller(s)`;
+      card.appendChild(meta);
+
+      if (trip.co2) {
+        const co2 = document.createElement("div");
+        co2.className = "co2";
+        co2.textContent = trip.co2;
+        card.appendChild(co2);
+      }
+
+      historyList.appendChild(card);
+    });
+  }
+  renderHistoryPanel();
 
   const PROGRESS_STEPS = FORM_STEPS.map((s) => s.match);
   function updateProgress(botText) {
@@ -528,6 +642,11 @@
     const body = match[1];
     const level = match[2];
     const trailing = match[3] || "";
+
+    // Stash the CO2 figure on tripState so saveTripToHistory can pick it
+    // up when the trip is later reset — same text this card displays.
+    const co2Match = body.match(/~([\d.]+ kg CO2e)/);
+    tripState.__lastCo2Text = co2Match ? co2Match[0] : null;
 
     const card = document.createElement("div");
     card.className = "transport-card " + level;
@@ -627,13 +746,12 @@
     scrollToBottom();
   }
 
-  // Sends geo:LAT,LON as plain text — actions.py's _resolve_city_input
-  // already parses this format and resolves it to the nearest supported
-  // city (FR-02), no backend change needed here at all.
-  // Renders the first 5 buttons immediately, with a "More cities" chip that
-  // reveals the rest on click, and (for origin only) a location button.
-  // Button order/flags come entirely from domain.yml — this function just
-  // decides how many to show up front.
+  // Renders the first 5 city buttons immediately, with a "More cities" chip
+  // that reveals the rest on click, and (for origin only) a "Use my
+  // location" button. Sends geo:LAT,LON as plain text — actions.py's
+  // _resolve_city_input already parses this format and resolves it to the
+  // nearest supported city (FR-02). Button order/flags come entirely from
+  // domain.yml; this function only decides how many to show up front.
   function addCityButtons(buttons, includeLocation) {
     if (!buttons || buttons.length === 0) return;
     const TOP_N = 5;
@@ -713,8 +831,6 @@
   }
 
   async function sendToBot(message, displayText) {
-    // Capture this reply as the answer to whichever field was just asked,
-    // before sending — this is what actually populates the summary panel.
     if (currentAskedField) {
       tripState[currentAskedField] = (displayText !== undefined && displayText !== "") ? displayText : message;
       renderSummaryPanel();
@@ -743,6 +859,7 @@
           updateProgress(msg.text);
 
           if (msg.text.includes("I've cleared your trip")) {
+            saveTripToHistory(tripState);
             tripState = {};
             currentAskedField = null;
             renderSummaryPanel();
