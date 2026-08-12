@@ -791,20 +791,20 @@
     card.appendChild(titleEl);
 
     rows.forEach((row) => {
-      const match = row.match(/^\d+\.\s*(.+?)\s*—\s*(.+?)\s*—\s*(.+?)\s*—\s*(.+?)(\s*\[RECOMMENDED\])?$/);
+      const match = row.match(/^\d+\.\s*(.+?)\s*—\s*(.+?)\s*—\s*(green|amber|red)(\s*\[RECOMMENDED\])?$/);
       const rowEl = document.createElement("div");
       rowEl.className = "option-row";
       if (match) {
-        const [, mode, dist, price, carbon, tag] = match;
+        const [, mode, detail, carbon, tag] = match;
         const left = document.createElement("div");
         const main = document.createElement("div");
         main.className = "option-main";
         main.textContent = mode;
-        const detail = document.createElement("div");
-        detail.className = "option-detail";
-        detail.textContent = `${dist} · ${price} · ${carbon}`;
+        const detailEl = document.createElement("div");
+        detailEl.className = "option-detail";
+        detailEl.textContent = `${detail} · ${carbon}`;
         left.appendChild(main);
-        left.appendChild(detail);
+        left.appendChild(detailEl);
         rowEl.appendChild(left);
         if (tag) {
           const tagEl = document.createElement("span");
@@ -815,9 +815,7 @@
       } else {
         rowEl.textContent = row;
       }
-      card.appendChild(rowEl);
     });
-
     chatWindow.appendChild(card);
     scrollToBottom();
     return true;
