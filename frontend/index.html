@@ -630,37 +630,71 @@
   // Sends geo:LAT,LON as plain text — actions.py's _resolve_city_input
   // already parses this format and resolves it to the nearest supported
   // city (FR-02), no backend change needed here at all.
-  function addLocationButton(buttonsRow) {
-    if (!navigator.geolocation) return; // silently skip on unsupported browsers
+  // Renders the first 5 buttons immediately, with a "More cities" chip that
+  // reveals the rest on click, and (for origin only) a location button.
+  // Button order/flags come entirely from domain.yml — this function just
+  // decides how many to show up front.
+  function addCityButtons(buttons, includeLocation) {
+    if (!buttons || buttons.length === 0) return;
+    const TOP_N = 5;
+    const topButtons = buttons.slice(0, TOP_N);
+    const restButtons = buttons.slice(TOP_N);
 
     const row = document.createElement("div");
     row.className = "buttons-row";
 
-    const chip = document.createElement("button");
-    chip.className = "btn-chip";
-    chip.textContent = "📍 Use my location";
-    chip.addEventListener("click", () => {
-      chip.disabled = true;
-      chip.textContent = "📍 Getting your location…";
+    function disableAll() {
+      row.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+    }
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (buttonsRow) {
-            buttonsRow.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
-          }
-          const { latitude, longitude } = position.coords;
-          sendToBot(`geo:${latitude},${longitude}`, "📍 Use my location");
-        },
-        () => {
-          chip.disabled = false;
-          chip.textContent = "📍 Use my location";
-          addBubble("bot", "I couldn't access your location — please tap a city above or type one instead.");
-        },
-        { timeout: 8000 }
-      );
-    });
+    function makeCityChip(btn) {
+      const chip = document.createElement("button");
+      chip.className = "btn-chip";
+      chip.textContent = btn.title;
+      chip.addEventListener("click", () => {
+        disableAll();
+        sendToBot(btn.payload, btn.title);
+      });
+      return chip;
+    }
 
-    row.appendChild(chip);
+    topButtons.forEach((btn) => row.appendChild(makeCityChip(btn)));
+
+    if (includeLocation && navigator.geolocation) {
+      const locChip = document.createElement("button");
+      locChip.className = "btn-chip";
+      locChip.textContent = "📍 Use my location";
+      locChip.addEventListener("click", () => {
+        locChip.disabled = true;
+        locChip.textContent = "📍 Getting your location…";
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            disableAll();
+            const { latitude, longitude } = position.coords;
+            sendToBot(`geo:${latitude},${longitude}`, "📍 Use my location");
+          },
+          () => {
+            locChip.disabled = false;
+            locChip.textContent = "📍 Use my location";
+            addBubble("bot", "I couldn't access your location — please tap a city or type one instead.");
+          },
+          { timeout: 8000 }
+        );
+      });
+      row.appendChild(locChip);
+    }
+
+    if (restButtons.length > 0) {
+      const moreChip = document.createElement("button");
+      moreChip.className = "btn-chip";
+      moreChip.textContent = "More cities ▾";
+      moreChip.addEventListener("click", () => {
+        moreChip.remove();
+        restButtons.forEach((btn) => row.appendChild(makeCityChip(btn)));
+      });
+      row.appendChild(moreChip);
+    }
+
     chatWindow.appendChild(row);
     scrollToBottom();
   }
@@ -730,8 +764,11 @@
             return;
           }
           if (msg.text.includes("Where are you travelling from")) {
-            const row = msg.buttons ? addButtons(msg.buttons) : null;
-            addLocationButton(row);
+            addCityButtons(msg.buttons, true);
+            return;
+          }
+          if (msg.text.includes("Which destination would you like")) {
+            addCityButtons(msg.buttons, false);
             return;
           }
         }
