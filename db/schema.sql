@@ -96,6 +96,7 @@ CREATE TABLE trip_session (
     estimated_co2_kg    NUMERIC(10,2),
     carbon_level        TEXT,                              -- 'green' | 'amber' | 'red'
     data_source         TEXT,                              -- 'climatiq' | 'stored'
+    recommended_mode    TEXT,                              
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

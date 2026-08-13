@@ -263,6 +263,28 @@
       </div>
     </div>
 
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Sustainability preference chosen</h3>
+        <canvas id="pref-chart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Carbon data source (API reliability)</h3>
+        <canvas id="source-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Top destinations</h3>
+        <canvas id="destinations-chart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Recommended transport mode</h3>
+        <canvas id="mode-chart"></canvas>
+      </div>
+    </div>
+
     <div class="section">
       <div class="section-header">
         <h2>Recent trips</h2>
@@ -393,6 +415,12 @@
 
   let tripsChart = null;
   let carbonChart = null;
+  let prefChart = null;
+  let sourceChart = null;
+  let destinationsChart = null;
+  let modeChart = null;
+
+  const PALETTE = ["#1b6b52", "#2f9c78", "#a8d5ba", "#f4c98a", "#c9847a", "#8ab4c8", "#d8a8d8"];
 
   async function loadStats() {
     const stats = await apiFetch("/stats");
@@ -432,6 +460,61 @@
           data: [carbon.green || 0, carbon.amber || 0, carbon.red || 0],
           backgroundColor: ["#2e7d32", "#ef6c00", "#c62828"],
         }],
+      },
+      options: { plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } } },
+    });
+
+    // Sustainability preference
+    const prefData = stats.sustainability_breakdown || {};
+    const prefLabels = Object.keys(prefData);
+    if (prefChart) prefChart.destroy();
+    prefChart = new Chart(document.getElementById("pref-chart"), {
+      type: "bar",
+      data: {
+        labels: prefLabels,
+        datasets: [{ data: prefLabels.map((k) => prefData[k]), backgroundColor: PALETTE }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+    });
+
+    // Data source reliability
+    const sourceData = stats.data_source_breakdown || {};
+    const sourceLabels = Object.keys(sourceData);
+    if (sourceChart) sourceChart.destroy();
+    sourceChart = new Chart(document.getElementById("source-chart"), {
+      type: "pie",
+      data: {
+        labels: sourceLabels.map((l) => (l === "climatiq" ? "Live API (Climatiq)" : "Stored fallback")),
+        datasets: [{ data: sourceLabels.map((k) => sourceData[k]), backgroundColor: ["#1b6b52", "#c9847a"] }],
+      },
+      options: { plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } } },
+    });
+
+    // Top destinations
+    const destinations = stats.top_destinations || [];
+    if (destinationsChart) destinationsChart.destroy();
+    destinationsChart = new Chart(document.getElementById("destinations-chart"), {
+      type: "bar",
+      data: {
+        labels: destinations.map((d) => d.destination),
+        datasets: [{ data: destinations.map((d) => d.count), backgroundColor: "#1b6b52" }],
+      },
+      options: {
+        indexAxis: "y",
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+      },
+    });
+
+    // Transport mode breakdown
+    const modeData = stats.mode_breakdown || {};
+    const modeLabels = Object.keys(modeData);
+    if (modeChart) modeChart.destroy();
+    modeChart = new Chart(document.getElementById("mode-chart"), {
+      type: "doughnut",
+      data: {
+        labels: modeLabels.map((l) => l.charAt(0).toUpperCase() + l.slice(1)),
+        datasets: [{ data: modeLabels.map((k) => modeData[k]), backgroundColor: PALETTE }],
       },
       options: { plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } } },
     });

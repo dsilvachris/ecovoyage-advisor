@@ -120,6 +120,40 @@ def stats():
         """)
         trips_per_day = [{"day": str(r["day"]), "count": r["count"]} for r in cur.fetchall()]
 
+        cur.execute("""
+            SELECT sustainability_pref, COUNT(*) AS count
+            FROM trip_session
+            WHERE sustainability_pref IS NOT NULL
+            GROUP BY sustainability_pref;
+        """)
+        sustainability_breakdown = {row["sustainability_pref"]: row["count"] for row in cur.fetchall()}
+
+        cur.execute("""
+            SELECT data_source, COUNT(*) AS count
+            FROM trip_session
+            WHERE data_source IS NOT NULL
+            GROUP BY data_source;
+        """)
+        data_source_breakdown = {row["data_source"]: row["count"] for row in cur.fetchall()}
+
+        cur.execute("""
+            SELECT dc.name AS destination, COUNT(*) AS count
+            FROM trip_session ts
+            JOIN city dc ON dc.id = ts.destination_city_id
+            GROUP BY dc.name
+            ORDER BY count DESC
+            LIMIT 8;
+        """)
+        top_destinations = [{"destination": r["destination"], "count": r["count"]} for r in cur.fetchall()]
+
+        cur.execute("""
+            SELECT recommended_mode, COUNT(*) AS count
+            FROM trip_session
+            WHERE recommended_mode IS NOT NULL
+            GROUP BY recommended_mode;
+        """)
+        mode_breakdown = {row["recommended_mode"]: row["count"] for row in cur.fetchall()}
+
     return jsonify({
         "total_trips": total_trips,
         "total_handovers": total_handovers,
@@ -127,6 +161,10 @@ def stats():
         "avg_co2_kg": avg_co2,
         "carbon_breakdown": carbon_breakdown,
         "trips_per_day": trips_per_day,
+        "sustainability_breakdown": sustainability_breakdown,
+        "data_source_breakdown": data_source_breakdown,
+        "top_destinations": top_destinations,
+        "mode_breakdown": mode_breakdown,
     })
 
 

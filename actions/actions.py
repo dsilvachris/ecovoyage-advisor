@@ -686,6 +686,7 @@ class ActionRecommendPlan(Action):
             estimated_co2_kg=co2_kg,
             carbon_level=carbon_level,
             data_source=tracker.get_slot("data_source"),
+            recommended_mode=mode,
         )
 
         return []

@@ -152,6 +152,7 @@ def save_trip_session(
     estimated_co2_kg: float | None,
     carbon_level: str | None,
     data_source: str | None,
+    recommended_mode: str | None,
 ) -> int | None:
     """Persists a completed (or partially completed) trip. Returns the new
     trip_session.id, or None if the write failed — callers should not block
