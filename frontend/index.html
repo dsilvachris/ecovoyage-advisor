@@ -651,7 +651,7 @@
 
   // --- Trip history (localStorage-persisted, no backend query needed) ---
   const HISTORY_KEY = "ecovoyage_trip_history";
-  let tripHistory = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  let tripHistory = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || "[]");
 
   function saveTripToHistory(state) {
     const complete = FORM_STEPS.every((s) => state[s.key]);
@@ -668,7 +668,7 @@
       transcript: currentTranscript.slice(),
     });
     tripHistory = tripHistory.slice(0, 10);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(tripHistory));
+    sessionStorage.setItem(HISTORY_KEY, JSON.stringify(tripHistory));
     renderHistoryPanel();
   }
 
