@@ -1,13 +1,619 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>EcoVoyage Admin</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EcoVoyage Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --green: #2e7d32;
+    --green-bg: #e8f5e9;
+    --amber: #ef6c00;
+    --amber-bg: #fff3e0;
+    --red: #c62828;
+    --red-bg: #ffebee;
+    --primary: #1b6b52;
+    --primary-dark: #12493a;
+    --bg: #f3f5f4;
+    --card: #ffffff;
+    --border: #e2e8e5;
+    --text: #1c2b26;
+    --muted: #6b7a74;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+  }
+
+  /* --- Login screen --- */
+  #login-screen {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #login-box {
+    background: white;
+    border-radius: 14px;
+    padding: 36px 32px;
+    width: 340px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+  #login-box .logo { font-size: 34px; margin-bottom: 8px; }
+  #login-box h1 { font-size: 18px; margin: 0 0 4px 0; }
+  #login-box .sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+  #login-box input {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 14px;
+    margin-bottom: 12px;
+    outline: none;
+  }
+  #login-box input:focus { border-color: var(--primary); }
+  #login-box button {
+    width: 100%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  #login-box button:hover { background: var(--primary-dark); }
+  #login-error {
+    color: var(--red);
+    font-size: 12.5px;
+    margin-top: 10px;
+    display: none;
+  }
+
+  /* --- Dashboard shell --- */
+  #dashboard { display: none; }
+  header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header .logo-badge {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 700; }
+  header .sub { font-size: 11.5px; opacity: 0.85; }
+  header .spacer { flex: 1; }
+  header a, header button {
+    background: rgba(255,255,255,0.18);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  header a:hover, header button:hover { background: rgba(255,255,255,0.3); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .stat-card .label {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .stat-card .value { font-size: 26px; font-weight: 700; }
+  .stat-card.warn .value { color: var(--red); }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  @media (max-width: 800px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+  .chart-card h3 { font-size: 14px; margin: 0 0 14px 0; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  .chart-card canvas { max-height: 240px; }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-header h2 { font-size: 15px; margin: 0; }
+  .section-header .count { font-size: 12px; color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: var(--bg); font-weight: 600; color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.02em; }
+  tr:last-child td { border-bottom: none; }
+  .table-scroll { overflow-x: auto; }
+
+  .pill { font-size: 10.5px; font-weight: 700; text-transform: uppercase; padding: 2px 8px; border-radius: 8px; }
+  .pill.green { background: var(--green-bg); color: var(--green); }
+  .pill.amber { background: var(--amber-bg); color: var(--amber); }
+  .pill.red { background: var(--red-bg); color: var(--red); }
+  .pill.neutral { background: var(--bg); color: var(--muted); }
+
+  .empty-state { padding: 30px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  /* --- Reference data management --- */
+  .crud-tabs { display: flex; gap: 6px; padding: 14px 18px 0; }
+  .crud-tab {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .crud-tab.active { background: var(--card); color: var(--text); font-weight: 600; border-bottom-color: var(--card); }
+  .crud-panel { display: none; padding: 16px 18px; }
+  .crud-panel.active { display: block; }
+  .crud-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .crud-form input {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12.5px;
+    width: 130px;
+  }
+  .crud-form button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  .crud-form button:hover { background: var(--primary-dark); }
+  .row-delete {
+    background: var(--red-bg);
+    color: var(--red);
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11.5px;
+    cursor: pointer;
+  }
+  .row-delete:hover { background: var(--red); color: white; }
+</style>
 </head>
 <body>
-  <!-- STATUS: scaffold only. Served at /admin behind HTTP Basic Auth
-       (deploy/nginx.conf). Will show trip sessions, pending handovers, and
-       CRUD tables for hotels/experiences/offsets, reading from admin_api.py. -->
-  <h1>EcoVoyage Admin Console — coming soon</h1>
+
+<div id="login-screen">
+  <div id="login-box">
+    <div class="logo">🌍</div>
+    <h1>EcoVoyage Admin</h1>
+    <div class="sub">Sign in to access the dashboard</div>
+    <input id="login-username" type="text" placeholder="Username" autocomplete="username" />
+    <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" />
+    <button id="login-btn">Sign in</button>
+    <div id="login-error">Invalid username or password.</div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <header>
+    <div class="logo-badge">🌍</div>
+    <div>
+      <h1>EcoVoyage Admin</h1>
+      <div class="sub">Bot performance & trip monitoring</div>
+    </div>
+    <div class="spacer"></div>
+    <a href="../frontend/index.html">← Back to chat</a>
+    <button id="logout-btn">Log out</button>
+  </header>
+
+  <main>
+    <div class="stat-grid" id="stat-grid"></div>
+
+    <div class="chart-grid">
+      <div class="chart-card">
+        <h3>Trips per day (last 14 days)</h3>
+        <canvas id="trips-chart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Carbon level breakdown</h3>
+        <canvas id="carbon-chart"></canvas>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2>Recent trips</h2>
+        <span class="count" id="trips-count"></span>
+      </div>
+      <div class="table-scroll">
+        <table id="trips-table">
+          <thead>
+            <tr>
+              <th>ID</th><th>Route</th><th>Date</th><th>Duration</th><th>Travellers</th>
+              <th>Budget</th><th>Priority</th><th>CO2e</th><th>Level</th><th>Source</th><th>Created</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2>Handover log</h2>
+        <span class="count" id="handovers-count"></span>
+      </div>
+      <div class="table-scroll">
+        <table id="handovers-table">
+          <thead>
+            <tr><th>ID</th><th>Reason</th><th>Status</th><th>Trip context</th><th>Created</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2>Reference data</h2>
+        <span class="count">Cities, hotels, experiences, offsets, transport options</span>
+      </div>
+      <div class="crud-tabs" id="crud-tabs"></div>
+      <div id="crud-panels"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  const API_BASE = "http://localhost:5002/api"; // temporary local-testing value, see note below
+  const TOKEN_KEY = "ecovoyage_admin_token";
+
+  const loginScreen = document.getElementById("login-screen");
+  const dashboard = document.getElementById("dashboard");
+  const loginUsername = document.getElementById("login-username");
+  const loginPassword = document.getElementById("login-password");
+  const loginBtn = document.getElementById("login-btn");
+  const loginError = document.getElementById("login-error");
+  const logoutBtn = document.getElementById("logout-btn");
+
+  let token = localStorage.getItem(TOKEN_KEY);
+
+  async function apiFetch(path, options = {}) {
+    const response = await fetch(API_BASE + path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+        ...(options.headers || {}),
+      },
+    });
+    if (response.status === 401) {
+      localStorage.removeItem(TOKEN_KEY);
+      showLogin();
+      throw new Error("Unauthorized");
+    }
+    if (!response.ok) throw new Error("Request failed: " + response.status);
+    return response.json();
+  }
+
+  function showLogin() {
+    loginScreen.style.display = "flex";
+    dashboard.style.display = "none";
+  }
+  function showDashboard() {
+    loginScreen.style.display = "none";
+    dashboard.style.display = "block";
+    loadEverything();
+  }
+
+  loginBtn.addEventListener("click", async () => {
+    loginError.style.display = "none";
+    try {
+      const response = await fetch(API_BASE + "/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loginUsername.value.trim(),
+          password: loginPassword.value,
+        }),
+      });
+      if (!response.ok) throw new Error("bad credentials");
+      const data = await response.json();
+      token = data.token;
+      localStorage.setItem(TOKEN_KEY, token);
+      showDashboard();
+    } catch (err) {
+      loginError.style.display = "block";
+    }
+  });
+
+  [loginUsername, loginPassword].forEach((el) => {
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") loginBtn.click();
+    });
+  });
+
+  logoutBtn.addEventListener("click", async () => {
+    try { await apiFetch("/logout", { method: "POST" }); } catch (e) {}
+    localStorage.removeItem(TOKEN_KEY);
+    showLogin();
+  });
+
+  // --- Dashboard: stats + charts ---
+  function statCard(label, value, warn) {
+    const el = document.createElement("div");
+    el.className = "stat-card" + (warn ? " warn" : "");
+    el.innerHTML = `<div class="label">${label}</div><div class="value">${value}</div>`;
+    return el;
+  }
+
+  let tripsChart = null;
+  let carbonChart = null;
+
+  async function loadStats() {
+    const stats = await apiFetch("/stats");
+    const grid = document.getElementById("stat-grid");
+    grid.innerHTML = "";
+    grid.appendChild(statCard("Total trips planned", stats.total_trips));
+    grid.appendChild(statCard("Avg. CO2e per trip", stats.avg_co2_kg != null ? stats.avg_co2_kg + " kg" : "—"));
+    grid.appendChild(statCard("Human handovers", stats.total_handovers));
+    grid.appendChild(statCard("Fallback escalations", stats.total_fallback_escalations, stats.total_fallback_escalations > 0));
+
+    const days = stats.trips_per_day.map((d) => d.day);
+    const counts = stats.trips_per_day.map((d) => d.count);
+    if (tripsChart) tripsChart.destroy();
+    tripsChart = new Chart(document.getElementById("trips-chart"), {
+      type: "line",
+      data: {
+        labels: days,
+        datasets: [{
+          label: "Trips",
+          data: counts,
+          borderColor: "#1b6b52",
+          backgroundColor: "rgba(27,107,82,0.1)",
+          fill: true,
+          tension: 0.3,
+        }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } },
+    });
+
+    const carbon = stats.carbon_breakdown || {};
+    if (carbonChart) carbonChart.destroy();
+    carbonChart = new Chart(document.getElementById("carbon-chart"), {
+      type: "doughnut",
+      data: {
+        labels: ["Green", "Amber", "Red"],
+        datasets: [{
+          data: [carbon.green || 0, carbon.amber || 0, carbon.red || 0],
+          backgroundColor: ["#2e7d32", "#ef6c00", "#c62828"],
+        }],
+      },
+      options: { plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } } } },
+    });
+  }
+
+  function pill(level) {
+    const cls = ["green", "amber", "red"].includes(level) ? level : "neutral";
+    return `<span class="pill ${cls}">${level || "—"}</span>`;
+  }
+
+  async function loadTrips() {
+    const trips = await apiFetch("/trips");
+    document.getElementById("trips-count").textContent = trips.length + " shown (max 100)";
+    const tbody = document.querySelector("#trips-table tbody");
+    tbody.innerHTML = "";
+    if (trips.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="11" class="empty-state">No trips recorded yet.</td></tr>`;
+      return;
+    }
+    trips.forEach((t) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${t.id}</td>
+        <td>${t.origin_name || "?"} → ${t.destination_name || "?"}</td>
+        <td>${t.travel_date || "—"}</td>
+        <td>${t.trip_duration_days != null ? t.trip_duration_days + "d" : "—"}</td>
+        <td>${t.num_travellers ?? "—"}</td>
+        <td>${t.budget_tier || "—"}</td>
+        <td>${t.sustainability_pref || "—"}</td>
+        <td>${t.estimated_co2_kg != null ? t.estimated_co2_kg + " kg" : "—"}</td>
+        <td>${pill(t.carbon_level)}</td>
+        <td>${t.data_source || "—"}</td>
+        <td>${new Date(t.created_at).toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function loadHandovers() {
+    const handovers = await apiFetch("/handovers");
+    document.getElementById("handovers-count").textContent = handovers.length + " total";
+    const tbody = document.querySelector("#handovers-table tbody");
+    tbody.innerHTML = "";
+    if (handovers.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No handovers logged yet.</td></tr>`;
+      return;
+    }
+    handovers.forEach((h) => {
+      const ctx = h.context_json || {};
+      const ctxSummary = ctx.origin && ctx.destination
+        ? `${ctx.origin} → ${ctx.destination}`
+        : "Incomplete trip";
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${h.id}</td>
+        <td>${h.reason === "fallback_escalation" ? '<span class="pill red">fallback</span>' : '<span class="pill neutral">user requested</span>'}</td>
+        <td>${h.status || "—"}</td>
+        <td>${ctxSummary}</td>
+        <td>${new Date(h.created_at).toLocaleString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // --- Reference data CRUD ---
+  const CRUD_CONFIG = {
+    cities: { label: "Cities", columns: ["name", "country", "latitude", "longitude", "iata_code"] },
+    hotels: { label: "Hotels", columns: ["city_id", "name", "eco_certification", "nightly_price_estimate", "sustainability_score", "carbon_score"] },
+    experiences: { label: "Experiences", columns: ["city_id", "name", "type", "estimated_price", "local_community_score"] },
+    offsets: { label: "Offsets", columns: ["provider_name", "project_type", "estimated_cost_per_tonne"] },
+    "transport-options": { label: "Transport Options", columns: ["origin_city_id", "destination_city_id", "transport_mode_id", "distance_km", "curated_distance_km"] },
+  };
+
+  function buildCrudUI() {
+    const tabsEl = document.getElementById("crud-tabs");
+    const panelsEl = document.getElementById("crud-panels");
+    const keys = Object.keys(CRUD_CONFIG);
+
+    keys.forEach((key, i) => {
+      const cfg = CRUD_CONFIG[key];
+
+      const tab = document.createElement("div");
+      tab.className = "crud-tab" + (i === 0 ? " active" : "");
+      tab.textContent = cfg.label;
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".crud-tab").forEach((t) => t.classList.remove("active"));
+        document.querySelectorAll(".crud-panel").forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("panel-" + key).classList.add("active");
+      });
+      tabsEl.appendChild(tab);
+
+      const panel = document.createElement("div");
+      panel.className = "crud-panel" + (i === 0 ? " active" : "");
+      panel.id = "panel-" + key;
+
+      const form = document.createElement("div");
+      form.className = "crud-form";
+      cfg.columns.forEach((col) => {
+        const input = document.createElement("input");
+        input.placeholder = col;
+        input.dataset.col = col;
+        form.appendChild(input);
+      });
+      const addBtn = document.createElement("button");
+      addBtn.textContent = "Add";
+      addBtn.addEventListener("click", () => createCrudRow(key, cfg, form));
+      form.appendChild(addBtn);
+      panel.appendChild(form);
+
+      const tableWrap = document.createElement("div");
+      tableWrap.className = "table-scroll";
+      const table = document.createElement("table");
+      table.id = "table-" + key;
+      table.innerHTML = `<thead><tr>${["ID", ...cfg.columns, "Actions"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody></tbody>`;
+      tableWrap.appendChild(table);
+      panel.appendChild(tableWrap);
+
+      panelsEl.appendChild(panel);
+    });
+  }
+
+  async function loadCrudTable(key, cfg) {
+    const rows = await apiFetch("/" + key);
+    const tbody = document.querySelector(`#table-${key} tbody`);
+    tbody.innerHTML = "";
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="${cfg.columns.length + 2}" class="empty-state">No rows yet.</td></tr>`;
+      return;
+    }
+    rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      const cells = [row.id, ...cfg.columns.map((c) => row[c] ?? "—")];
+      tr.innerHTML = cells.map((c) => `<td>${c}</td>`).join("");
+      const actionsTd = document.createElement("td");
+      const delBtn = document.createElement("button");
+      delBtn.className = "row-delete";
+      delBtn.textContent = "Delete";
+      delBtn.addEventListener("click", async () => {
+        if (!confirm("Delete this row?")) return;
+        await apiFetch(`/${key}/${row.id}`, { method: "DELETE" });
+        loadCrudTable(key, cfg);
+      });
+      actionsTd.appendChild(delBtn);
+      tr.appendChild(actionsTd);
+      tbody.appendChild(tr);
+    });
+  }
+
+  async function createCrudRow(key, cfg, form) {
+    const data = {};
+    form.querySelectorAll("input").forEach((input) => {
+      data[input.dataset.col] = input.value.trim() || null;
+    });
+    await apiFetch("/" + key, { method: "POST", body: JSON.stringify(data) });
+    form.querySelectorAll("input").forEach((input) => (input.value = ""));
+    loadCrudTable(key, cfg);
+  }
+
+  async function loadAllCrudTables() {
+    for (const key of Object.keys(CRUD_CONFIG)) {
+      await loadCrudTable(key, CRUD_CONFIG[key]);
+    }
+  }
+
+  async function loadEverything() {
+    try {
+      await Promise.all([loadStats(), loadTrips(), loadHandovers(), loadAllCrudTables()]);
+    } catch (err) {
+      console.error("Admin dashboard load error:", err);
+    }
+  }
+
+  buildCrudUI();
+
+  if (token) {
+    showDashboard();
+  } else {
+    showLogin();
+  }
+})();
+</script>
+
 </body>
 </html>
