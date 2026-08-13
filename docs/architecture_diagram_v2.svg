@@ -1,0 +1,129 @@
+<svg viewBox="0 0 1450 980" xmlns="http://www.w3.org/2000/svg" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#4a4a4a"/>
+    </marker>
+  </defs>
+
+  <rect width="1450" height="980" fill="#ffffff"/>
+
+  <text x="725" y="40" font-size="24" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Figure 1: High-Level Architecture — EcoVoyage Advisor (v2, with Admin Console)</text>
+
+  <!-- Layer boundaries -->
+  <rect x="40" y="70" width="270" height="860" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="55" y="60" font-size="18" font-weight="bold" fill="#333">USER LAYER</text>
+
+  <rect x="340" y="70" width="310" height="860" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="355" y="60" font-size="18" font-weight="bold" fill="#333">FRONTEND LAYER</text>
+
+  <rect x="680" y="70" width="340" height="860" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="695" y="60" font-size="18" font-weight="bold" fill="#333">BACKEND LAYER (single Docker image)</text>
+
+  <rect x="1050" y="70" width="360" height="500" fill="none" stroke="#333" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="1065" y="60" font-size="18" font-weight="bold" fill="#333">EXTERNAL / DATA LAYER</text>
+
+  <!-- USER LAYER -->
+  <rect x="70" y="140" width="210" height="55" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="175" y="172" font-size="14" text-anchor="middle" fill="#1a1a1a">Traveller (End User)</text>
+
+  <rect x="70" y="260" width="210" height="55" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="175" y="292" font-size="14" text-anchor="middle" fill="#1a1a1a">Human Travel Advisor</text>
+
+  <rect x="70" y="380" width="210" height="55" rx="8" fill="#f4c98a" stroke="#a06a2b" stroke-width="2"/>
+  <text x="175" y="412" font-size="14" text-anchor="middle" fill="#1a1a1a">Admin User</text>
+
+  <!-- FRONTEND LAYER -->
+  <rect x="380" y="180" width="240" height="100" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="500" y="210" font-size="14" text-anchor="middle" fill="#1a1a1a">Web Chat UI</text>
+  <text x="500" y="230" font-size="12" text-anchor="middle" fill="#1a1a1a">(Vanilla JS / Rasa Webchat)</text>
+  <text x="500" y="248" font-size="12" text-anchor="middle" fill="#1a1a1a">quick-replies, colour cards,</text>
+  <text x="500" y="264" font-size="12" text-anchor="middle" fill="#1a1a1a">handover indicator</text>
+
+  <rect x="380" y="360" width="240" height="90" rx="8" fill="#f4c98a" stroke="#a06a2b" stroke-width="2"/>
+  <text x="500" y="390" font-size="14" text-anchor="middle" fill="#1a1a1a">Admin Console</text>
+  <text x="500" y="410" font-size="12" text-anchor="middle" fill="#1a1a1a">/admin — trips, handovers,</text>
+  <text x="500" y="426" font-size="12" text-anchor="middle" fill="#1a1a1a">hotel/experience/offset CRUD</text>
+  <text x="500" y="442" font-size="11" text-anchor="middle" fill="#a06a2b">HTTP Basic Auth (nginx)</text>
+
+  <!-- BACKEND LAYER -->
+  <rect x="710" y="130" width="280" height="50" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="850" y="160" font-size="14" text-anchor="middle" fill="#1a1a1a">Rasa NLU + Core</text>
+
+  <rect x="710" y="195" width="280" height="50" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="850" y="225" font-size="14" text-anchor="middle" fill="#1a1a1a">Custom Action Server</text>
+
+  <rect x="710" y="260" width="280" height="50" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="850" y="284" font-size="13" text-anchor="middle" fill="#1a1a1a">Weighted Scoring +</text>
+  <text x="850" y="300" font-size="13" text-anchor="middle" fill="#1a1a1a">2-Stage Fallback Logic</text>
+
+  <rect x="710" y="325" width="280" height="50" rx="8" fill="#f4c98a" stroke="#a06a2b" stroke-width="2"/>
+  <text x="850" y="355" font-size="13" text-anchor="middle" fill="#1a1a1a">Admin API (CRUD + auth)</text>
+
+  <rect x="710" y="410" width="280" height="70" rx="8" fill="#dce8e0" stroke="#4a7c59" stroke-width="2"/>
+  <text x="850" y="436" font-size="13" text-anchor="middle" fill="#1a1a1a">Single Docker image</text>
+  <text x="850" y="452" font-size="12" text-anchor="middle" fill="#1a1a1a">(nginx + Rasa + Actions + Admin API)</text>
+  <text x="850" y="468" font-size="12" text-anchor="middle" fill="#1a1a1a">hosted on Render (or Cloud Run)</text>
+
+  <!-- EXTERNAL / DATA LAYER -->
+  <rect x="1080" y="100" width="290" height="48" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="1225" y="129" font-size="13" text-anchor="middle" fill="#1a1a1a">Climatiq API — carbon calc</text>
+
+  <rect x="1080" y="163" width="290" height="48" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="1225" y="192" font-size="13" text-anchor="middle" fill="#1a1a1a">OpenRouteService — routing</text>
+
+  <rect x="1080" y="226" width="290" height="48" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="1225" y="255" font-size="13" text-anchor="middle" fill="#1a1a1a">OpenCage — geocoding / GPS</text>
+
+  <rect x="1080" y="289" width="290" height="48" rx="8" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="1225" y="318" font-size="13" text-anchor="middle" fill="#1a1a1a">Aviationstack — flight data</text>
+
+  <rect x="1080" y="380" width="290" height="70" rx="8" fill="#9fc4e8" stroke="#2c5d8f" stroke-width="2"/>
+  <text x="1225" y="408" font-size="14" text-anchor="middle" fill="#1a1a1a">NeonDB (PostgreSQL)</text>
+  <text x="1225" y="426" font-size="12" text-anchor="middle" fill="#1a1a1a">primary store — destinations, hotels,</text>
+  <text x="1225" y="442" font-size="12" text-anchor="middle" fill="#1a1a1a">experiences, offsets, trips, handovers</text>
+
+  <!-- Edges: User -> Frontend -->
+  <path d="M280,167 C320,167 350,205 380,220" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="290" y="185" font-size="11" fill="#333">HTTPS</text>
+
+  <path d="M280,287 C320,287 350,255 380,240" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="285" y="300" font-size="11" fill="#333">HTTPS (handover)</text>
+
+  <path d="M280,407 C320,407 350,405 380,405" stroke="#a06a2b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="285" y="397" font-size="11" fill="#a06a2b">HTTPS + Basic Auth</text>
+
+  <!-- Frontend -> Backend -->
+  <path d="M620,225 C660,225 680,175 710,155" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="630" y="205" font-size="11" fill="#333">REST /webhooks/rest/webhook</text>
+
+  <path d="M620,405 C660,405 680,365 710,350" stroke="#a06a2b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="630" y="390" font-size="11" fill="#a06a2b">REST /admin/api</text>
+
+  <!-- Backend internal -->
+  <path d="M850,180 L850,195" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M850,245 L850,260" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M850,310 L850,325" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M850,375 L850,410" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Backend -> External APIs -->
+  <path d="M990,150 C1030,150 1050,124 1080,124" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M990,185 C1030,195 1050,187 1080,187" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M990,225 C1030,240 1050,250 1080,250" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M990,240 C1030,275 1050,313 1080,313" stroke="#4a4a4a" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="1000" y="110" font-size="11" fill="#333">HTTPS egress — optional, graceful fallback</text>
+
+  <!-- Backend -> NeonDB (both chat actions and admin API) -->
+  <path d="M990,220 C1030,300 1050,400 1080,410" stroke="#2c5d8f" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M990,350 C1030,390 1050,410 1080,415" stroke="#2c5d8f" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <text x="1000" y="365" font-size="11" fill="#2c5d8f">SSL Postgres (primary store)</text>
+
+  <!-- Legend -->
+  <rect x="70" y="600" width="18" height="18" fill="#a8d5ba" stroke="#4a7c59" stroke-width="2"/>
+  <text x="95" y="614" font-size="12" fill="#333">Core chatbot component</text>
+  <rect x="70" y="630" width="18" height="18" fill="#f4c98a" stroke="#a06a2b" stroke-width="2"/>
+  <text x="95" y="644" font-size="12" fill="#333">Admin console component (new)</text>
+  <rect x="70" y="660" width="18" height="18" fill="#9fc4e8" stroke="#2c5d8f" stroke-width="2"/>
+  <text x="95" y="674" font-size="12" fill="#333">Primary database (NeonDB)</text>
+  <rect x="70" y="690" width="18" height="18" fill="#dce8e0" stroke="#4a7c59" stroke-width="2"/>
+  <text x="95" y="704" font-size="12" fill="#333">Deployment container</text>
+</svg>
