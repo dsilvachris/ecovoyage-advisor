@@ -166,15 +166,15 @@ def save_trip_session(
                 """
                 INSERT INTO trip_session (
                     sender_id, origin_city_id, destination_city_id, travel_date,
-                    num_travellers, budget_tier, sustainability_pref,
-                    estimated_co2_kg, carbon_level, data_source
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    trip_duration_days, num_travellers, budget_tier, sustainability_pref,
+                    estimated_co2_kg, carbon_level, data_source, recommended_mode
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
                     sender_id, origin_city_id, destination_city_id, travel_date,
-                    num_travellers, budget_tier, sustainability_pref,
-                    estimated_co2_kg, carbon_level, data_source,
+                    trip_duration_days, num_travellers, budget_tier, sustainability_pref,
+                    estimated_co2_kg, carbon_level, data_source, recommended_mode,
                 ),
             )
             row = cur.fetchone()
