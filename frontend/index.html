@@ -511,6 +511,17 @@
   .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
   .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+  #admin-btn {
+    background: rgba(255,255,255,0.18);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 6px;
+  }
+  #admin-btn:hover { background: rgba(255,255,255,0.3); }
 </style>
 </head>
 <body>
@@ -537,6 +548,7 @@
       </div>
       <button id="summary-toggle">📋 Trip</button>
       <button id="reset-trip-btn">↺ Reset</button>
+      <button id="admin-btn">🛠️ Admin</button>
     </header>
 
     <div id="progress-bar"><div id="progress-fill"></div></div>
@@ -581,6 +593,11 @@
   summaryToggle.addEventListener("click", () => summaryPanel.classList.add("mobile-open"));
   summaryClose.addEventListener("click", () => summaryPanel.classList.remove("mobile-open"));
   resetTripBtn.addEventListener("click", () => sendToBot("start over", "Reset trip"));
+  resetTripBtn.addEventListener("click", () => sendToBot("start over", "Reset trip"));
+
+  document.getElementById("admin-btn").addEventListener("click", () => {
+    window.location.href = "../admin/index.html";
+  });
 
   // Ordered form steps. `match` is a substring of the bot's question used
   // to detect which slot is currently being asked (the REST webhook only
