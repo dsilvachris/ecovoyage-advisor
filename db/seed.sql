@@ -2,12 +2,15 @@
 -- STATUS: consolidated seed — 21 cities (12 Europe-focused + 9 across other
 -- continents), each with an IATA code for Aviationstack route lookups,
 -- transport modes, emission factors, tags, curated ground-transport
--- distances for a spread of intra-Europe pairs, and a starter set of
--- hotels/experiences/offsets. Expand hotel/experience/offset coverage
--- during Task 4.
+-- distances for a spread of intra-Europe pairs, a full hotel+experience
+-- for every city, and offset options. Expand further as needed.
 -- NOTE: ground transport (train/coach/car) is only meaningful for intra-Europe
 -- pairs; intercontinental routes are flight-only, computed via haversine at
 -- query time — no transport_option rows are needed for those pairs.
+-- NOTE: hotel/experience coverage was originally sparse (7/21 cities had a
+-- hotel, 6/21 had an experience) — a real gap found via the admin console's
+-- reference-data view during Phase 3. Every city now has at least one of
+-- each (migration_003_expand_hotels_experiences.sql, folded in here).
 
 -- Cities (Europe-focused set)
 INSERT INTO city (name, country, latitude, longitude, iata_code) VALUES
@@ -59,10 +62,6 @@ INSERT INTO tag (name) VALUES
 ('community_supporting');
 
 -- Ground transport (train/coach/car) for a spread of intra-Europe pairs.
--- Discovered missing entirely during local testing (Berlin->Copenhagen
--- came back flight-only despite a low_carbon preference, because no
--- transport_option rows existed for ANY route at all) — this section
--- fixes that gap for both directions of each pair below.
 INSERT INTO transport_option (origin_city_id, destination_city_id, transport_mode_id, distance_km)
 SELECT o.id, d.id, tm.id, v.distance_km FROM (VALUES
     -- London <-> Paris (Scenario 1)
@@ -145,26 +144,69 @@ JOIN city o ON o.name = v.origin
 JOIN city d ON d.name = v.destination
 JOIN transport_mode tm ON tm.name = v.mode;
 
--- Starter hotels — one eco-certified example per select city, to be expanded in Task 4
-INSERT INTO hotel (city_id, name, eco_certification, nightly_price_estimate, sustainability_score, carbon_score) VALUES
-((SELECT id FROM city WHERE name = 'Paris'),      'Hôtel Vert Rive Gauche', 'EU Ecolabel', 120.00, 0.85, 0.20),
-((SELECT id FROM city WHERE name = 'Amsterdam'),  'Green Canal Lodge',      'Green Key',   95.00,  0.90, 0.15),
-((SELECT id FROM city WHERE name = 'Lisbon'),     'Casa Sustentável',       'EU Ecolabel', 80.00,  0.80, 0.25),
-((SELECT id FROM city WHERE name = 'Copenhagen'), 'Nordic Eco Stay',        'Green Key',   140.00, 0.92, 0.10),
-((SELECT id FROM city WHERE name = 'Cape Town'),  'Table Mountain Eco Lodge', 'Green Key', 90.00,  0.88, 0.22),
-((SELECT id FROM city WHERE name = 'Tokyo'),      'Sakura Sustainable Inn', 'EU-equivalent local cert', 110.00, 0.78, 0.30),
-((SELECT id FROM city WHERE name = 'Sydney'),     'Harbour Green Stay',     'EarthCheck',  130.00, 0.83, 0.28);
+-- Hotels — full coverage, all 21 cities. Originally only 7/21 had a hotel;
+-- expanded via migration_003 after the gap was found through the admin
+-- console's reference-data view.
+INSERT INTO hotel (city_id, name, eco_certification, nightly_price_estimate, sustainability_score, carbon_score)
+SELECT c.id, v.name, v.cert, v.price, v.sustain, v.carbon
+FROM (VALUES
+    ('Paris',          'Hôtel Vert Rive Gauche',       'EU Ecolabel',           120.00, 0.85, 0.20),
+    ('Amsterdam',       'Green Canal Lodge',            'Green Key',             95.00,  0.90, 0.15),
+    ('Lisbon',          'Casa Sustentável',              'EU Ecolabel',           80.00,  0.80, 0.25),
+    ('Copenhagen',      'Nordic Eco Stay',               'Green Key',            140.00, 0.92, 0.10),
+    ('Cape Town',       'Table Mountain Eco Lodge',      'Green Key',             90.00,  0.88, 0.22),
+    ('Tokyo',           'Sakura Sustainable Inn',        'EU-equivalent local cert', 110.00, 0.78, 0.30),
+    ('Sydney',          'Harbour Green Stay',            'EarthCheck',           130.00, 0.83, 0.28),
+    ('London',          'Camden Green House',            'EU Ecolabel',          145.00, 0.86, 0.24),
+    ('London',          'Shoreditch Budget Green',       NULL,                    78.00, 0.68, 0.35),
+    ('Madrid',          'Hostal Verde Centro',           'EU Ecolabel',           88.00, 0.79, 0.27),
+    ('Rome',            'Roma Sostenibile',              'EU Ecolabel',          105.00, 0.81, 0.26),
+    ('Berlin',          'Kreuzberg Eco Rooms',           'Green Key',             92.00, 0.87, 0.19),
+    ('Berlin',          'Mitte Budget Eco',              NULL,                    65.00, 0.70, 0.33),
+    ('Barcelona',       'Casa Verda Gracia',             'EU Ecolabel',           98.00, 0.82, 0.23),
+    ('Vienna',          'Wien Grün Hotel',               'Green Key',            115.00, 0.84, 0.21),
+    ('Prague',          'Praha Eco Stay',                'Green Key',             75.00, 0.80, 0.28),
+    ('Dublin',          'Liffey Green Lodge',            'EU Ecolabel',          100.00, 0.78, 0.29),
+    ('Nairobi',         'Karen Eco Retreat',             'EarthCheck',            70.00, 0.89, 0.18),
+    ('Nairobi',         'CBD Green Budget Inn',          NULL,                    42.00, 0.65, 0.36),
+    ('Bangkok',         'Sukhumvit Green Stay',          'Green Key',             55.00, 0.76, 0.31),
+    ('New York',        'Brooklyn Eco Loft',             'LEED Certified',       190.00, 0.74, 0.33),
+    ('Toronto',         'Distillery Green Inn',          'LEED Certified',       135.00, 0.83, 0.25),
+    ('Rio de Janeiro',  'Ipanema Eco Pousada',           'EarthCheck',            85.00, 0.77, 0.30),
+    ('Bogotá',          'Chapinero Verde',               'Green Key',             60.00, 0.81, 0.27)
+) AS v(city, name, cert, price, sustain, carbon)
+JOIN city c ON c.name = v.city;
 
--- Starter experiences
-INSERT INTO experience (city_id, name, type, estimated_price, local_community_score) VALUES
-((SELECT id FROM city WHERE name = 'Paris'),          'Local co-op food market tour', 'culinary', 25.00, 0.80),
-((SELECT id FROM city WHERE name = 'Rome'),           'Community-led history walk',   'cultural', 20.00, 0.85),
-((SELECT id FROM city WHERE name = 'Copenhagen'),     'Urban cycling tour',            'nature',   30.00, 0.75),
-((SELECT id FROM city WHERE name = 'Nairobi'),        'Community wildlife conservancy visit', 'nature', 40.00, 0.90),
-((SELECT id FROM city WHERE name = 'Bangkok'),        'Local floating market tour',    'culinary', 18.00, 0.82),
-((SELECT id FROM city WHERE name = 'Rio de Janeiro'), 'Favela community-led tour',     'cultural', 22.00, 0.88);
+-- Experiences — full coverage, all 21 cities. Same gap/fix history as hotels.
+INSERT INTO experience (city_id, name, type, estimated_price, local_community_score)
+SELECT c.id, v.name, v.type, v.price, v.score
+FROM (VALUES
+    ('Paris',           'Local co-op food market tour',            'culinary', 25.00, 0.80),
+    ('Rome',            'Community-led history walk',               'cultural', 20.00, 0.85),
+    ('Copenhagen',      'Urban cycling tour',                        'nature',   30.00, 0.75),
+    ('Nairobi',         'Community wildlife conservancy visit',      'nature',   40.00, 0.90),
+    ('Bangkok',         'Local floating market tour',                'culinary', 18.00, 0.82),
+    ('Rio de Janeiro',  'Favela community-led tour',                 'cultural', 22.00, 0.88),
+    ('London',          'East End community market walk',           'cultural', 20.00, 0.79),
+    ('Madrid',          'Local tapas & vermouth crawl',              'culinary', 28.00, 0.81),
+    ('Berlin',          'Kreuzberg street art & community tour',     'cultural', 18.00, 0.83),
+    ('Barcelona',       'Gràcia neighbourhood co-op tour',           'cultural', 22.00, 0.84),
+    ('Amsterdam',       'Canal-side community garden visit',         'nature',   15.00, 0.80),
+    ('Vienna',          'Naschmarkt local producers tour',           'culinary', 24.00, 0.78),
+    ('Prague',          'Old Town community-led walk',               'cultural', 16.00, 0.82),
+    ('Lisbon',          'Alfama fado & local eats tour',             'culinary', 26.00, 0.85),
+    ('Dublin',          'Liberties community history walk',          'cultural', 18.00, 0.80),
+    ('Cape Town',       'Bo-Kaap community cooking class',           'culinary', 35.00, 0.90),
+    ('Tokyo',           'Yanaka local shotengai walk',                'cultural', 20.00, 0.77),
+    ('New York',        'Queens community food tour',                'culinary', 45.00, 0.83),
+    ('Toronto',         'Kensington Market co-op tour',               'cultural', 25.00, 0.81),
+    ('Bogotá',          'La Candelaria community art walk',          'cultural', 15.00, 0.86),
+    ('Sydney',          'Bondi community beach cleanup + tour',      'nature',   12.00, 0.88)
+) AS v(city, name, type, price, score)
+JOIN city c ON c.name = v.city;
 
--- Offset options
+-- Offset options — global providers, not destination-specific, so a small
+-- fixed set is correct coverage rather than a gap.
 INSERT INTO offset_option (provider_name, project_type, estimated_cost_per_tonne) VALUES
 ('Gold Standard',           'renewable energy', 22.00),
 ('Verra (VCS)',             'reforestation',    15.00),
