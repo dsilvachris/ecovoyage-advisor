@@ -263,3 +263,12 @@ stories:
     - carbon_level: green
   - action: action_recommend_plan
   - action: utter_carbon_disclaimer
+
+- story: human handover requested immediately, before answering any question
+  steps:
+  - intent: plan_trip
+  - action: trip_planning_form
+  - active_loop: trip_planning_form
+  - intent: request_human
+  - action: action_handover
+  - active_loop: null
