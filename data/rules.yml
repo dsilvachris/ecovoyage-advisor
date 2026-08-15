@@ -87,3 +87,8 @@ rules:
   - action: action_estimate_carbon
   - action: action_recommend_plan
   - action: utter_carbon_disclaimer
+
+  - rule: Human handover request anytime, form active or not
+  steps:
+  - intent: request_human
+  - action: action_handover
