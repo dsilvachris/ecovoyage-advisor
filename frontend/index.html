@@ -615,9 +615,7 @@
     textInput.placeholder = "Your name…";
     textInput.focus();
 
-    const onNameSubmit = (name) => {
-      textInput.removeEventListener("keydown", nameKeyHandler);
-      sendBtn.removeEventListener("click", nameClickHandler);
+    pendingTextHandler = (name) => {
       addBubble("user", name);
       currentTranscript.push({ sender: "user", text: name });
 
@@ -625,9 +623,7 @@
       textInput.placeholder = "Describe your query…";
       textInput.focus();
 
-      const onQuerySubmit = (query) => {
-        textInput.removeEventListener("keydown", queryKeyHandler);
-        sendBtn.removeEventListener("click", queryClickHandler);
+      pendingTextHandler = (query) => {
         addBubble("user", query);
         currentTranscript.push({ sender: "user", text: query });
         textInput.placeholder = "Type a message…";
@@ -636,35 +632,7 @@
         const escapedQuery = query.replace(/"/g, '\\"');
         sendToBot(`/request_human{"name": "${escapedName}", "query": "${escapedQuery}"}`, "");
       };
-
-      const queryClickHandler = () => {
-        const val = textInput.value.trim();
-        if (val) onQuerySubmit(val);
-      };
-      const queryKeyHandler = (e) => {
-        if (e.key === "Enter") {
-          const val = textInput.value.trim();
-          if (val) onQuerySubmit(val);
-        }
-      };
-      textInput.value = "";
-      textInput.addEventListener("keydown", queryKeyHandler);
-      sendBtn.addEventListener("click", queryClickHandler);
     };
-
-    const nameClickHandler = () => {
-      const val = textInput.value.trim();
-      if (val) onNameSubmit(val);
-    };
-    const nameKeyHandler = (e) => {
-      if (e.key === "Enter") {
-        const val = textInput.value.trim();
-        if (val) onNameSubmit(val);
-      }
-    };
-    textInput.value = "";
-    textInput.addEventListener("keydown", nameKeyHandler);
-    sendBtn.addEventListener("click", nameClickHandler);
   }
 
   document.getElementById("admin-btn").addEventListener("click", () => {
@@ -691,6 +659,7 @@
   let currentAskedField = null;
   let currentTranscript = []; // [{sender: "user"|"bot", text: string}, ...] for the in-progress trip
   let viewingHistory = false;
+  let pendingTextHandler = null; // when set, the next Send/Enter goes here instead of sendToBot
   let savedLiveSession = null; // {tripState, currentAskedField, transcript} stashed while viewing history
 
   function detectAskedField(botText) {
@@ -1284,15 +1253,22 @@
     }
   }
 
-  sendBtn.addEventListener("click", () => {
+  function handleUserSubmit() {
     const value = textInput.value.trim();
-    if (value) sendToBot(value);
-  });
-  textInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const value = textInput.value.trim();
-      if (value) sendToBot(value);
+    if (!value) return;
+    if (pendingTextHandler) {
+      const handler = pendingTextHandler;
+      pendingTextHandler = null;
+      textInput.value = "";
+      handler(value);
+      return;
     }
+    sendToBot(value);
+  }
+
+  sendBtn.addEventListener("click", handleUserSubmit);
+  textInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleUserSubmit();
   });
 
   window.addEventListener("DOMContentLoaded", () => {
