@@ -784,6 +784,18 @@ class ActionHandover(Action):
     async def run(
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> List[Dict[Text, Any]]:
+        # Optional structured payload from the always-visible "Human"
+        # button (see frontend index.html): /request_human{"name": "...",
+        # "query": "..."}. Parsed the same way /inform{...} payloads are —
+        # via entities Rasa's RegexMessageHandler extracts from the
+        # command syntax, NOT free NLU classification, so this needs no
+        # training data and works identically whether triggered by typing
+        # "talk to a human" (no entities, both fields blank) or by the
+        # structured button flow.
+        entities = tracker.latest_message.get("entities", [])
+        user_name = next((e["value"] for e in entities if e["entity"] == "name"), None)
+        user_query = next((e["value"] for e in entities if e["entity"] == "query"), None)
+
         context = {
             "origin": tracker.get_slot("origin"),
             "destination": tracker.get_slot("destination"),
@@ -793,6 +805,8 @@ class ActionHandover(Action):
             "sustainability_pref": tracker.get_slot("sustainability_pref"),
             "estimated_co2": tracker.get_slot("estimated_co2"),
             "carbon_level": tracker.get_slot("carbon_level"),
+            "user_name": user_name,
+            "user_query": user_query,
         }
 
         # Heuristic: a recent scoped-fallback execution in this conversation
@@ -804,15 +818,23 @@ class ActionHandover(Action):
         ]
         reason = "fallback_escalation" if "action_scoped_fallback" in recent_actions else "user_requested"
 
-        repository.save_handover_log(
+        handover_id = repository.save_handover_log(
             trip_session_id=None,  # not linked to a specific trip_session row — see repository.py's docstring
             reason=reason,
             context_json=context,
         )
 
-        dispatcher.utter_message(
-            text="I've passed your details to a human travel advisor — they'll be in touch shortly.",
-        )
+        if handover_id:
+            dispatcher.utter_message(
+                text=(
+                    f"Thanks{f', {user_name}' if user_name else ''} — I've registered your query "
+                    f"under query ID #{handover_id}. A human travel advisor will be in touch shortly."
+                ),
+            )
+        else:
+            dispatcher.utter_message(
+                text="I've passed your details to a human travel advisor — they'll be in touch shortly.",
+            )
 
         return [ActiveLoop(None)]
 

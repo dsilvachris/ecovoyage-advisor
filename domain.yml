@@ -28,6 +28,9 @@ entities:
   - budget
   - sustainability_pref
   - field_to_edit
+  - trip_duration_days
+  - name
+  - query
 
 slots:
   # origin & destination use custom extraction so a city is only ever written

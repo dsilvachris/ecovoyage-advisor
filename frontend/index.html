@@ -522,6 +522,18 @@
     margin-left: 6px;
   }
   #admin-btn:hover { background: rgba(255,255,255,0.3); }
+
+  #human-btn {
+    background: rgba(255,255,255,0.18);
+    border: none;
+    color: white;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 6px;
+  }
+  #human-btn:hover { background: rgba(255,255,255,0.3); }
 </style>
 </head>
 <body>
@@ -548,6 +560,7 @@
       </div>
       <button id="summary-toggle">📋 Trip</button>
       <button id="reset-trip-btn">↺ Reset</button>
+      <button id="human-btn">🧑‍💼 Human</button>
       <button id="admin-btn">🛠️ Admin</button>
     </header>
 
@@ -594,6 +607,65 @@
   summaryClose.addEventListener("click", () => summaryPanel.classList.remove("mobile-open"));
   resetTripBtn.addEventListener("click", () => sendToBot("start over", "Reset trip"));
   resetTripBtn.addEventListener("click", () => sendToBot("start over", "Reset trip"));
+
+  document.getElementById("human-btn").addEventListener("click", startHumanHandoverFlow);
+
+  function startHumanHandoverFlow() {
+    addBubble("bot", "Sure — before I connect you, could I get your name?");
+    textInput.placeholder = "Your name…";
+    textInput.focus();
+
+    const onNameSubmit = (name) => {
+      textInput.removeEventListener("keydown", nameKeyHandler);
+      sendBtn.removeEventListener("click", nameClickHandler);
+      addBubble("user", name);
+      currentTranscript.push({ sender: "user", text: name });
+
+      addBubble("bot", "Thanks! What would you like help with?");
+      textInput.placeholder = "Describe your query…";
+      textInput.focus();
+
+      const onQuerySubmit = (query) => {
+        textInput.removeEventListener("keydown", queryKeyHandler);
+        sendBtn.removeEventListener("click", queryClickHandler);
+        addBubble("user", query);
+        currentTranscript.push({ sender: "user", text: query });
+        textInput.placeholder = "Type a message…";
+
+        const escapedName = name.replace(/"/g, '\\"');
+        const escapedQuery = query.replace(/"/g, '\\"');
+        sendToBot(`/request_human{"name": "${escapedName}", "query": "${escapedQuery}"}`, "");
+      };
+
+      const queryClickHandler = () => {
+        const val = textInput.value.trim();
+        if (val) onQuerySubmit(val);
+      };
+      const queryKeyHandler = (e) => {
+        if (e.key === "Enter") {
+          const val = textInput.value.trim();
+          if (val) onQuerySubmit(val);
+        }
+      };
+      textInput.value = "";
+      textInput.addEventListener("keydown", queryKeyHandler);
+      sendBtn.addEventListener("click", queryClickHandler);
+    };
+
+    const nameClickHandler = () => {
+      const val = textInput.value.trim();
+      if (val) onNameSubmit(val);
+    };
+    const nameKeyHandler = (e) => {
+      if (e.key === "Enter") {
+        const val = textInput.value.trim();
+        if (val) onNameSubmit(val);
+      }
+    };
+    textInput.value = "";
+    textInput.addEventListener("keydown", nameKeyHandler);
+    sendBtn.addEventListener("click", nameClickHandler);
+  }
 
   document.getElementById("admin-btn").addEventListener("click", () => {
     window.location.href = "../admin/index.html";
