@@ -331,7 +331,7 @@
 
 <script>
 (function () {
-  const API_BASE = "http://localhost:5002/api"; // temporary local-testing value, see note below
+  const API_BASE = window.location.origin + "/api";
   const TOKEN_KEY = "ecovoyage_admin_token";
 
   const loginScreen = document.getElementById("login-screen");

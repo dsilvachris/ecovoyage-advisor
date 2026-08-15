@@ -4,7 +4,11 @@ services:
   ecovoyage-advisor:
     build: .
     ports:
-      - "7860:7860"
+      - "8080:8080"
     env_file:
       - .env
+    environment:
+      - PORT=8080
+      - ADMIN_HTTP_USER=admin
+      - ADMIN_HTTP_PASSWORD=changeme
     restart: unless-stopped

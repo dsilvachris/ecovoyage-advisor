@@ -1,15 +1,35 @@
-#!/usr/bin/env bash
-# Container entrypoint — starts the action server, Rasa REST server, and the
-# admin API in the background, generates the nginx Basic Auth file from env
-# vars, then runs nginx in the foreground (keeps the container alive).
-#
-# STATUS: scaffold only, to be tested during Task 6.
-set -euo pipefail
+#!/bin/sh
+set -e
 
-htpasswd -bc /etc/nginx/.htpasswd "${ADMIN_USERNAME:-admin}" "${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set}"
+# Render (and most PaaS platforms) inject PORT at container start, not
+# build time — substitute it into nginx's config now. Explicitly scoped to
+# $PORT only, so nginx's own $uri/$host/$remote_addr variables in the
+# template are left alone.
+export PORT="${PORT:-8080}"
+envsubst '$PORT' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
+# htpasswd for nginx's outer Basic Auth gate on /admin and /api — generated
+# from env vars at container start, never baked into the image. Distinct
+# from the admin console's own app-level login (admin@ecovoyage / ...),
+# matching the two-layer auth in the architecture diagram.
+ADMIN_HTTP_USER="${ADMIN_HTTP_USER:-admin}"
+ADMIN_HTTP_PASSWORD="${ADMIN_HTTP_PASSWORD:-changeme}"
+printf "%s:%s\n" "$ADMIN_HTTP_USER" "$(openssl passwd -apr1 "$ADMIN_HTTP_PASSWORD")" > /etc/nginx/.htpasswd
+
+echo "Starting Rasa action server..."
 rasa run actions --port 5055 &
-rasa run --enable-api --cors "*" --port 5005 &
-# python actions/admin_api.py --port 5056 &   # TODO once admin_api.py is implemented
 
-nginx -g "daemon off;"
+echo "Starting Rasa server..."
+rasa run --enable-api --cors "*" --port 5005 &
+
+echo "Starting Admin API..."
+python3 -m actions.admin_api &
+
+# Crude but effective for a single-instance prototype: give the background
+# services a moment to bind their ports before nginx starts routing to
+# them. A production setup would poll each service's health endpoint
+# instead of a fixed sleep.
+sleep 8
+
+echo "Starting nginx..."
+exec nginx -g 'daemon off;'
