@@ -88,7 +88,17 @@ rules:
   - action: action_recommend_plan
   - action: utter_carbon_disclaimer
 
-  - rule: Human handover request anytime, form active or not
+- rule: Human handover interrupts an active form
+  condition:
+  - active_loop: trip_planning_form
+  steps:
+  - intent: request_human
+  - action: action_handover
+  - active_loop: null
+
+- rule: Human handover request when no form is active
+  condition:
+  - active_loop: null
   steps:
   - intent: request_human
   - action: action_handover
