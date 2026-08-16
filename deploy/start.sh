@@ -29,7 +29,7 @@ python3 -m actions.admin_api &
 # services a moment to bind their ports before nginx starts routing to
 # them. A production setup would poll each service's health endpoint
 # instead of a fixed sleep.
-sleep 8
+sleep 25
 
 echo "Starting nginx..."
 exec nginx -g 'daemon off;'
