@@ -116,22 +116,24 @@ gcloud run deploy ecovoyage-advisor --image=<artifact-registry-path> ...
 
 ## Project structure
 ecovoyage-advisor/
-├── actions/ # Custom Rasa actions, NeonDB access, external API clients, admin API
-├── data/ # NLU training data, stories, rules
-├── frontend/ # Chat UI (vanilla JS)
-├── admin/ # Admin console UI
-├── db/ # Schema, canonical seed data, migrations
-├── deploy/ # nginx config template, container startup script
-├── tests/ # pytest unit tests + rasa test stories
-├── docs/ # deployment guide, API integration decisions, architecture, testing log
-├── config.yml # NLU pipeline + policies
-├── domain.yml # Intents, entities, slots, forms, responses
-├── endpoints.yml # Action server endpoint
-├── credentials.yml # Channel config (REST)
+├── actions/          # Custom Rasa actions, NeonDB access, external API clients, admin API
+├── data/             # NLU training data, stories, rules
+├── frontend/         # Chat UI (vanilla JS)
+├── admin/            # Admin console UI
+├── db/                # Schema, canonical seed data, migrations
+├── deploy/           # nginx config template, container startup script
+├── tests/            # pytest unit tests + rasa test stories
+├── docs/             # deployment guide, API integration decisions, architecture, testing log
+├── config.yml        # NLU pipeline + policies
+├── domain.yml        # Intents, entities, slots, forms, responses
+├── endpoints.yml     # Action server endpoint
+├── credentials.yml   # Channel config (REST)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 └── .env.example
+
+
 ## Testing
 
 ```bash
