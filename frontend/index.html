@@ -1053,6 +1053,17 @@
         row.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
         const picker = row.parentElement.querySelector(".date-picker-row");
         if (picker) picker.querySelector("button").disabled = true;
+
+        // "I'm flexible" gets special handling: instead of sending the
+        // bare payload immediately, ask year then month first.
+        if (btn.payload === '/inform{"travel_date": "flexible"}') {
+          addBubble("user", btn.title);
+          currentTranscript.push({ sender: "user", text: btn.title });
+          addBubble("bot", "No problem, which year suits you?");
+          addFlexibleDateFlow();
+          return;
+        }
+
         sendToBot(btn.payload, btn.title);
       });
       row.appendChild(chip);
@@ -1095,6 +1106,55 @@
     wrap.appendChild(input);
     wrap.appendChild(confirmBtn);
     chatWindow.appendChild(wrap);
+    scrollToBottom();
+  }
+
+  const MONTHS = ["January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November", "December"];
+
+  // Lightweight year->month flow triggered by "I'm flexible", entirely
+  // frontend-side. Sends a plain string like "October 2026" as the
+  // travel_date answer — validate_travel_date in actions.py already
+  // accepts any non-empty string as-is, so this needs zero backend
+  // changes. Deliberately skips asking "how long" here (unlike the
+  // reference demo) since trip_duration_days is already asked as its own
+  // separate question right after travel_date.
+  function addFlexibleDateFlow() {
+    const yearRow = document.createElement("div");
+    yearRow.className = "buttons-row";
+    const currentYear = new Date().getFullYear();
+    [currentYear, currentYear + 1].forEach((year) => {
+      const chip = document.createElement("button");
+      chip.className = "btn-chip";
+      chip.textContent = String(year);
+      chip.addEventListener("click", () => {
+        yearRow.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+        addBubble("user", String(year));
+        currentTranscript.push({ sender: "user", text: String(year) });
+        addBubble("bot", "And which month?");
+        addMonthRow(year);
+      });
+      yearRow.appendChild(chip);
+    });
+    chatWindow.appendChild(yearRow);
+    scrollToBottom();
+  }
+
+  function addMonthRow(year) {
+    const monthRow = document.createElement("div");
+    monthRow.className = "buttons-row";
+    MONTHS.forEach((month) => {
+      const chip = document.createElement("button");
+      chip.className = "btn-chip";
+      chip.textContent = month;
+      chip.addEventListener("click", () => {
+        monthRow.querySelectorAll(".btn-chip").forEach((b) => (b.disabled = true));
+        const formatted = `${month} ${year}`;
+        sendToBot(formatted, formatted);
+      });
+      monthRow.appendChild(chip);
+    });
+    chatWindow.appendChild(monthRow);
     scrollToBottom();
   }
 
