@@ -29,7 +29,19 @@ python3 -m actions.admin_api &
 # services a moment to bind their ports before nginx starts routing to
 # them. A production setup would poll each service's health endpoint
 # instead of a fixed sleep.
-sleep 25
+# Poll Rasa's own /status endpoint until it responds, rather than guessing a
+# fixed sleep duration — cold-start timing varies (57s+ observed on Cloud
+# Run vs. ~14s locally), so a hardcoded sleep is inherently fragile. Caps
+# at 120s as a safety net so the container doesn't hang forever if
+# something is genuinely broken.
+echo "Waiting for Rasa server to be ready..."
+for i in $(seq 1 60); do
+  if curl -sf http://127.0.0.1:5005/status > /dev/null 2>&1; then
+    echo "Rasa server is ready after ${i}0 checks."
+    break
+  fi
+  sleep 2
+done
 
 echo "Starting nginx..."
 exec nginx -g 'daemon off;'
