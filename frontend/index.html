@@ -581,7 +581,7 @@
   // NOTE: hardcoded for local testing without Docker/nginx in front.
   // MUST be reverted to `window.location.origin + "/webhooks/rest/webhook"`
   // before committing — see project notes on this recurring gotcha.
-  const REST_ENDPOINT = window.location.origin + "/webhooks/rest/webhook";
+  const REST_ENDPOINT = "http://localhost:5005/webhooks/rest/webhook";
 
   const SENDER_ID_KEY = "ecovoyage_sender_id";
   let senderId = localStorage.getItem(SENDER_ID_KEY);
@@ -1143,7 +1143,14 @@
   function addMonthRow(year) {
     const monthRow = document.createElement("div");
     monthRow.className = "buttons-row";
-    MONTHS.forEach((month) => {
+
+    const now = new Date();
+    const isCurrentYear = year === now.getFullYear();
+    const earliestMonthIndex = isCurrentYear ? now.getMonth() : 0; // 0 = January
+
+    MONTHS.forEach((month, index) => {
+      if (index < earliestMonthIndex) return; // skip months already in the past
+
       const chip = document.createElement("button");
       chip.className = "btn-chip";
       chip.textContent = month;
@@ -1154,6 +1161,7 @@
       });
       monthRow.appendChild(chip);
     });
+
     chatWindow.appendChild(monthRow);
     scrollToBottom();
   }
