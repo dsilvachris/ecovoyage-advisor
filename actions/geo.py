@@ -11,6 +11,12 @@ pure string similarity against the supported city list, no external API
 involved at all — this is what powers action_clarify_destination's "did you
 mean...?" flow (FR-03).
 
+Also handles resolving a typed city name outside the 21 curated cities via
+Open-Meteo's Geocoding API (resolve_city_by_name) — added so the bot can at
+least estimate a trip for any real city, not just the curated set, per
+live-testing feedback. See resolve_city_by_name's own docstring for why
+Open-Meteo rather than OpenCage for this specific operation.
+
 Reuses haversine_km from routing.py rather than duplicating the formula.
 """
 
@@ -23,6 +29,9 @@ from .routing import haversine_km
 OPENCAGE_API_KEY = os.environ.get("OPENCAGE_API_KEY")
 OPENCAGE_ENDPOINT = "https://api.opencagedata.com/geocode/v1/json"
 OPENCAGE_TIMEOUT_SECONDS = 5
+
+OPEN_METEO_GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search"
+OPEN_METEO_TIMEOUT_SECONDS = 5
 
 # Confirmed during Phase 1 testing (see docs/api-integration-decision.md):
 # OpenCage takes lat,lng order — matches our NeonDB storage order directly,
@@ -97,6 +106,41 @@ def resolve_gps_location(lat: float, lon: float, supported_cities: list[dict]) -
     nearest = nearest_supported_city(lat, lon, supported_cities)
     nearest["friendly_label"] = _try_opencage_label(lat, lon)
     return nearest
+
+def resolve_city_by_name(typed_name: str) -> dict | None:
+    """
+    Forward-geocodes an arbitrary, non-curated city name via Open-Meteo's
+    Geocoding API — added after live testing (with the module's assessor)
+    surfaced a real usability gap: the bot could previously only recognize
+    the 21 curated cities, with no path to resolution for anything else.
+
+    Deliberately Open-Meteo, not OpenCage: no API key required, no
+    per-second rate limit (OpenCage's free tier caps at 1 req/sec), and
+    this is forward geocoding (name -> coordinates) — a different
+    operation from _try_opencage_label's reverse geocoding above, which is
+    untouched and still uses OpenCage for the GPS-button feature.
+
+    Returns None on any failure (network, malformed response, zero
+    results) — callers must treat that as "couldn't resolve," not raise.
+    """
+    try:
+        response = requests.get(
+            OPEN_METEO_GEOCODING_ENDPOINT,
+            params={"name": typed_name, "count": 1, "language": "en", "format": "json"},
+            timeout=OPEN_METEO_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        data = response.json()
+        result = data["results"][0]
+        return {
+            "name": result["name"],
+            "latitude": result["latitude"],
+            "longitude": result["longitude"],
+            "country": result.get("country"),
+            "admin1": result.get("admin1"),  # region/state — useful for disambiguating e.g. Paris, TX vs Paris, France
+        }
+    except (requests.RequestException, KeyError, IndexError, ValueError, TypeError):
+        return None
 
 
 def find_city_typo_match(typed_name: str, supported_city_names: list[str]) -> str | None:
