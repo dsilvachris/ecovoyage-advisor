@@ -31,6 +31,9 @@ entities:
   - trip_duration_days
   - name
   - query
+    - geo_lat
+  - geo_lon
+  - geo_country
 
 slots:
   # origin & destination use custom extraction so a city is only ever written

@@ -214,13 +214,27 @@ def _parse_sustainability_pref(raw: str) -> Optional[str]:
 
 def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
     """
-    Resolves free text (or a 'geo:LAT,LON' GPS payload — FR-02) to a
-    supported city.
+    Resolves free text (or a 'geo:LAT,LON' GPS payload — FR-02) to a city.
 
     Returns one of:
       {"status": "exact", "name": <city name>}
       {"status": "fuzzy", "guess": <city name>}
+      {"status": "geocoded", "name": ..., "country": ..., "admin1": ...}
       {"status": "none"}
+
+    Resolution order is deliberate:
+      1. Exact match against our DB (covers all 21 curated cities, plus any
+         non-curated city already inserted by an earlier conversation)
+      2. Typo match against curated city names — runs BEFORE geocoding on
+         purpose: "Barselona" should suggest our curated Barcelona (which
+         has real eco-certified hotel/experience data), not be geocoded to
+         some arbitrary other place, losing the curated experience
+      3. Open-Meteo forward geocoding for genuinely unrecognized cities —
+         added after live testing showed the bot previously dead-ended on
+         anything outside the curated 21. Returns "geocoded" rather than
+         "exact" so the caller can ask for confirmation first ("Did you
+         mean Munich, Germany?"), since geocoding an ambiguous name (Paris,
+         France vs. Paris, Texas) can confidently return the wrong place.
     """
     text = raw_text.strip()
 
@@ -241,13 +255,23 @@ def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
         return {"status": "exact", "name": exact["name"]}
 
     cities = repository.get_supported_cities()
-    supported_names = [c["name"] for c in cities]
-    guess = geo.find_city_typo_match(text, supported_names)
+    curated_names = [c["name"] for c in cities if c.get("is_curated")]
+    guess = geo.find_city_typo_match(text, curated_names)
     if guess:
         return {"status": "fuzzy", "guess": guess}
 
-    return {"status": "none"}
+    geocoded = geo.resolve_city_by_name(text)
+    if geocoded:
+        return {
+            "status": "geocoded",
+            "name": geocoded["name"],
+            "latitude": geocoded["latitude"],
+            "longitude": geocoded["longitude"],
+            "country": geocoded["country"],
+            "admin1": geocoded["admin1"],
+        }
 
+    return {"status": "none"}
 
 def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, slot_name: str, guess: str) -> None:
     """FR-03 — see module docstring, point 5. The "Yes" button carries the
@@ -266,6 +290,44 @@ def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, slot_name: str
         ],
     )
 
+def _dispatch_geocoded_confirmation(
+    dispatcher: CollectingDispatcher, slot_name: str, geocoded: Dict[str, Any]
+) -> None:
+    """Confirmation for a city resolved via geocoding rather than our
+    curated list. Shows country/region context because geocoding an
+    ambiguous name can confidently return the wrong place (Paris, France
+    vs. Paris, Texas) — the user should see which one we found before we
+    commit it to their trip.
+
+    The Yes button carries the full geocoded payload so the next turn
+    needs no cross-turn slot — same design as _dispatch_city_confirmation,
+    for the same rasa-sdk reason documented in the module docstring
+    (point 5)."""
+    location_parts = [geocoded["name"]]
+    if geocoded.get("admin1"):
+        location_parts.append(geocoded["admin1"])
+    if geocoded.get("country"):
+        location_parts.append(geocoded["country"])
+    label = ", ".join(location_parts)
+
+    payload = (
+        f'/inform{{"{slot_name}": "{geocoded["name"]}", '
+        f'"geo_lat": "{geocoded["latitude"]}", '
+        f'"geo_lon": "{geocoded["longitude"]}", '
+        f'"geo_country": "{geocoded.get("country") or ""}"}}'
+    )
+
+    dispatcher.utter_message(
+        text=(
+            f"I found {label}. That's not one of our curated eco-destinations, "
+            f"so I can estimate your trip's carbon footprint but won't have "
+            f"verified eco-certified stays there. Shall I use it?"
+        ),
+        buttons=[
+            {"title": f"Yes, use {geocoded['name']}", "payload": payload},
+            {"title": "No, let me retype", "payload": "/deny"},
+        ],
+    )
 
 # --------------------------------------------------------------------------
 # Transport / hotel scoring (FR-06)
@@ -284,6 +346,37 @@ def _score_transport_options(
     carbon.py.
     """
     rows = repository.get_transport_options_for_route(origin_city["id"], destination_city["id"])
+
+    # Hybrid approach for non-curated routes: if no ground transport is
+    # seeded for this pair (always the case for geocoded cities), synthesise
+    # train/coach/car options for short-to-medium routes rather than leaving
+    # flight as the only choice. Without this, a 240km hop like Munich ->
+    # Zurich would recommend flying, which actively contradicts the tool's
+    # purpose. The synthesised options are clearly labelled as estimates in
+    # the recommendation output (see ActionRecommendPlan), so we're not
+    # implying the same confidence as curated route data.
+    has_ground = any(r["mode_name"] != "flight" for r in rows)
+    synthesised_ground = False
+    if not has_ground:
+        straight_line_km = routing.haversine_km(
+            origin_city["latitude"], origin_city["longitude"],
+            destination_city["latitude"], destination_city["longitude"],
+        )
+        # 1500km upper bound: beyond this, ground travel stops being a
+        # realistic alternative for most travellers, and a long-haul train
+        # estimate would be more misleading than helpful.
+        if straight_line_km <= 1500:
+            ground_rows = repository.get_ground_transport_templates()
+            for template in ground_rows:
+                rows.append({
+                    "mode_name": template["mode_name"],
+                    "kg_co2e_per_pax_km": template["kg_co2e_per_pax_km"],
+                    "base_price_eur": template["base_price_eur"],
+                    "price_per_km": template["price_per_km"],
+                    "curated_distance_km": None,  # routing.py will estimate
+                })
+            synthesised_ground = bool(ground_rows)
+
     options = []
 
     for row in rows:
@@ -338,6 +431,8 @@ def _score_transport_options(
         o["score"] = weights["carbon"] * norm_carbon + weights["price"] * norm_price
 
     options.sort(key=lambda o: o["score"])
+    for o in options:
+        o["is_estimated_route"] = synthesised_ground and o["mode_name"] != "flight"
     return options
 
 
@@ -395,6 +490,24 @@ class ValidateTripPlanningForm(FormValidationAction):
         entity_value = next((e["value"] for e in entities if e["entity"] == "origin"), None)
         raw = entity_value if entity_value else tracker.latest_message.get("text", "")
 
+        # A confirmed geocoded city arrives with coordinates in the payload
+        # (see _dispatch_geocoded_confirmation) — the row is inserted/reused
+        # only at this point, once the user has actually confirmed it,
+        # rather than for every unrecognized city anyone merely types.
+        geo_lat = next((e["value"] for e in entities if e["entity"] == "geo_lat"), None)
+        geo_lon = next((e["value"] for e in entities if e["entity"] == "geo_lon"), None)
+        if entity_value and geo_lat and geo_lon:
+            geo_country = next((e["value"] for e in entities if e["entity"] == "geo_country"), None)
+            city_row = repository.find_or_create_city(
+                entity_value, float(geo_lat), float(geo_lon), geo_country or None
+            )
+            if city_row:
+                return {"origin": city_row["name"]}
+            dispatcher.utter_message(
+                text="I had trouble saving that location — could you try another city?"
+            )
+            return {}
+        result = _resolve_city_input(raw)
         result = _resolve_city_input(raw)
 
         if result["status"] == "exact":
@@ -403,9 +516,44 @@ class ValidateTripPlanningForm(FormValidationAction):
                     text=f"📍 We've detected your location near {result['name']} — setting that as your departure city."
                 )
             return {"origin": result["name"]}
+                # Both typo-corrected and geocoded cities are ACCEPTED directly
+        # rather than asking for yes/no confirmation first. Rasa discards
+        # messages dispatched from an extract_<slot> method that returns {}
+        # — the form simply re-asks and action_scoped_fallback overwrites
+        # the response with utter_ask_origin (verified via dispatcher.messages
+        # logging: the confirmation was correctly built every time, then
+        # dropped). Filling the slot immediately and stating what we
+        # resolved keeps the user informed without fighting that behaviour.
+        # The user can still correct a wrong guess via Reset.
         if result["status"] == "fuzzy":
-            _dispatch_city_confirmation(dispatcher, "origin", result["guess"])
-            return {}
+            dispatcher.utter_message(
+                text=f"I've taken that as {result['guess']} — tap ↺ Reset if that's not right."
+            )
+            return {"origin": result["guess"]}
+
+        if result["status"] == "geocoded":
+            city_row = repository.find_or_create_city(
+                result["name"], result["latitude"], result["longitude"], result.get("country")
+            )
+            if not city_row:
+                dispatcher.utter_message(
+                    text="I had trouble saving that location — could you try another city?"
+                )
+                return {}
+            location_parts = [city_row["name"]]
+            if result.get("admin1"):
+                location_parts.append(result["admin1"])
+            if result.get("country"):
+                location_parts.append(result["country"])
+            dispatcher.utter_message(
+                text=(
+                    f"📍 I found {', '.join(location_parts)}. It's not one of our curated "
+                    f"eco-destinations, so I'll estimate your trip's carbon footprint but "
+                    f"won't have verified eco-certified stays there."
+                )
+            )
+            return {"origin": city_row["name"]}
+
         return {}
 
     async def extract_destination(
@@ -423,6 +571,27 @@ class ValidateTripPlanningForm(FormValidationAction):
         entity_value = next((e["value"] for e in entities if e["entity"] == "destination"), None)
         raw = entity_value if entity_value else tracker.latest_message.get("text", "")
 
+        # Confirmed geocoded destination — see extract_origin's equivalent
+        # block above for why the row is only created at confirmation time.
+        geo_lat = next((e["value"] for e in entities if e["entity"] == "geo_lat"), None)
+        geo_lon = next((e["value"] for e in entities if e["entity"] == "geo_lon"), None)
+        if entity_value and geo_lat and geo_lon:
+            geo_country = next((e["value"] for e in entities if e["entity"] == "geo_country"), None)
+            city_row = repository.find_or_create_city(
+                entity_value, float(geo_lat), float(geo_lon), geo_country or None
+            )
+            if not city_row:
+                dispatcher.utter_message(
+                    text="I had trouble saving that location — could you try another city?"
+                )
+                return {}
+            if city_row["name"] == tracker.get_slot("origin"):
+                dispatcher.utter_message(
+                    text="That's the same as your origin — where would you like to go instead?"
+                )
+                return {}
+            return {"destination": city_row["name"]}
+
         result = _resolve_city_input(raw)
 
         if result["status"] == "exact":
@@ -433,9 +602,47 @@ class ValidateTripPlanningForm(FormValidationAction):
                 return {}
             return {"destination": result["name"]}
 
+        # Direct-accept rather than confirm — see extract_origin's
+        # equivalent block for why (Rasa discards messages dispatched from
+        # an extract_<slot> method that returns {}).
         if result["status"] == "fuzzy":
-            _dispatch_city_confirmation(dispatcher, "destination", result["guess"])
-            return {}
+            if result["guess"] == tracker.get_slot("origin"):
+                dispatcher.utter_message(
+                    text="That's the same as your origin — where would you like to go instead?"
+                )
+                return {}
+            dispatcher.utter_message(
+                text=f"I've taken that as {result['guess']} — tap ↺ Reset if that's not right."
+            )
+            return {"destination": result["guess"]}
+
+        if result["status"] == "geocoded":
+            city_row = repository.find_or_create_city(
+                result["name"], result["latitude"], result["longitude"], result.get("country")
+            )
+            if not city_row:
+                dispatcher.utter_message(
+                    text="I had trouble saving that location — could you try another city?"
+                )
+                return {}
+            if city_row["name"] == tracker.get_slot("origin"):
+                dispatcher.utter_message(
+                    text="That's the same as your origin — where would you like to go instead?"
+                )
+                return {}
+            location_parts = [city_row["name"]]
+            if result.get("admin1"):
+                location_parts.append(result["admin1"])
+            if result.get("country"):
+                location_parts.append(result["country"])
+            dispatcher.utter_message(
+                text=(
+                    f"📍 I found {', '.join(location_parts)}. It's not one of our curated "
+                    f"eco-destinations, so I'll estimate your trip's carbon footprint but "
+                    f"won't have verified eco-certified stays there."
+                )
+            )
+            return {"destination": city_row["name"]}
 
         return {}
 
@@ -534,6 +741,7 @@ class ActionEstimateCarbon(Action):
                 "price_eur": o["price_total_eur"],
                 "co2_kg": o["co2e_total_kg"],
                 "carbon_level": o["carbon_level"],
+                "is_estimated_route": o.get("is_estimated_route", False),
             }
             for o in top_options
         ]
@@ -618,6 +826,13 @@ class ActionRecommendPlan(Action):
                     f"{i}. {o['mode'].capitalize()} — {o['distance_km']} km, "
                     f"~€{o['price_eur']} total, ~{o['co2_kg']} kg CO2e — {o['carbon_level']}{tag}"
                 )
+            # Transparency for synthesised ground options on non-curated
+            # routes — see _score_transport_options for why they exist.
+            if any(o.get("is_estimated_route") for o in top_options):
+                lines.append(
+                    "(Ground options for this route are estimated from distance — "
+                    "we don't have curated timetable data for it yet.)"
+                )
             dispatcher.utter_message(text="\n".join(lines))
         else:
             dispatcher.utter_message(text="I couldn't retrieve transport options for this route.")
@@ -649,8 +864,12 @@ class ActionRecommendPlan(Action):
             dispatcher.utter_message(text="\n".join(lines))
         else:
             dispatcher.utter_message(
-                text=f"I don't have curated hotel data for {destination_city['name']} yet — "
-                     f"a human advisor can help find eco-certified options there."
+                text=(
+                    f"{destination_city['name']} isn't one of our curated eco-destinations yet, "
+                    f"so I don't have verified eco-certified stays to recommend there. When "
+                    f"booking, look for Green Key or EU Ecolabel certification — or tap "
+                    f"🧑‍💼 Human and an advisor can help you find options."
+                )
             )
 
         # --- Experiences (up to 2, ranked by community impact) ---

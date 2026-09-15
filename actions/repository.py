@@ -27,7 +27,7 @@ def get_supported_cities() -> list[dict]:
         with get_cursor() as cur:
             if cur is None:
                 return []
-            cur.execute("SELECT id, name, country, latitude, longitude, iata_code FROM city ORDER BY name")
+            cur.execute("SELECT id, name, country, latitude, longitude, iata_code, is_curated FROM city ORDER BY name")
             return cur.fetchall()
     except psycopg2.Error as e:
         logger.error("get_supported_cities query failed: %s", e)
@@ -152,6 +152,29 @@ def get_transport_options_for_route(origin_city_id: int, destination_city_id: in
         logger.error("get_transport_options_for_route query failed: %s", e)
         return []
 
+def get_ground_transport_templates() -> list[dict]:
+    """Mode + emission factor + pricing for each ground transport mode,
+    independent of any specific route — used to synthesise options for
+    routes with no seeded transport_option rows (i.e. any geocoded,
+    non-curated city pair). Returns [] on failure, which correctly
+    degrades to flight-only rather than breaking the recommendation."""
+    try:
+        with get_cursor() as cur:
+            if cur is None:
+                return []
+            cur.execute("""
+                SELECT tm.name AS mode_name,
+                       ef.kg_co2e_per_pax_km,
+                       tm.base_price_eur,
+                       tm.price_per_km
+                FROM transport_mode tm
+                JOIN emission_factor ef ON ef.transport_mode_id = tm.id
+                WHERE tm.name != 'flight'
+            """)
+            return cur.fetchall()
+    except psycopg2.Error as e:
+        logger.error("get_ground_transport_templates query failed: %s", e)
+        return []
 
 # --- Hotels, experiences, offsets (FR-04) ---
 
