@@ -46,6 +46,65 @@ def resolve_city(name: str) -> dict | None:
         logger.error("resolve_city query failed: %s", e)
         return None
 
+# Radius within which an incoming geocoded city is considered "the same
+# place" as an existing row, rather than a genuine new one — guards
+# against inserting near-duplicates (e.g. "Munich" typed by two different
+# users, or geocoding returning slightly different coordinates for the
+# same city on different calls).
+CITY_DEDUP_RADIUS_KM = 15
+
+
+def find_or_create_city(name: str, latitude: float, longitude: float, country: str | None) -> dict | None:
+    """
+    Resolves a geocoded city (from geo.py's resolve_city_by_name) to a
+    city row — reusing an existing nearby row if one already exists within
+    CITY_DEDUP_RADIUS_KM, otherwise inserting a new one with is_curated =
+    FALSE. Added alongside Open-Meteo forward geocoding so the bot can
+    handle any real city, not just the 21 curated destinations, without
+    the city table accumulating unbounded near-duplicates from repeated
+    user input.
+
+    Returns the resolved city dict (existing or newly inserted), or None
+    if the DB is unreachable or the query fails.
+    """
+    try:
+        with get_cursor(commit=True) as cur:
+            if cur is None:
+                return None
+
+            # Haversine in SQL, mirroring routing.py's Python implementation,
+            # so de-duplication doesn't require pulling every city row into
+            # Python just to check distance.
+            cur.execute(
+                """
+                SELECT *,
+                    6371 * 2 * ASIN(SQRT(
+                        POWER(SIN(RADIANS(latitude - %s) / 2), 2) +
+                        COS(RADIANS(%s)) * COS(RADIANS(latitude)) *
+                        POWER(SIN(RADIANS(longitude - %s) / 2), 2)
+                    )) AS distance_km
+                FROM city
+                ORDER BY distance_km ASC
+                LIMIT 1
+                """,
+                (latitude, latitude, longitude),
+            )
+            nearest = cur.fetchone()
+            if nearest and nearest["distance_km"] <= CITY_DEDUP_RADIUS_KM:
+                return nearest
+
+            cur.execute(
+                """
+                INSERT INTO city (name, country, latitude, longitude, is_curated)
+                VALUES (%s, %s, %s, %s, FALSE)
+                RETURNING *
+                """,
+                (name, country, latitude, longitude),
+            )
+            return cur.fetchone()
+    except psycopg2.Error as e:
+        logger.error("find_or_create_city query failed: %s", e)
+        return None
 
 # --- Transport options for a route (FR-04, FR-06) ---
 
