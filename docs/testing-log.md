@@ -448,3 +448,59 @@ NLU-layer correctness from Core-layer policy behaviour, and making a
 scoped, evidence-based decision to reduce feature surface rather than
 ship an unreliable interaction) is stronger evidence of testing rigour
 than an untroubled implementation would have been.
+
+## Attempted and deferred: button-based city disambiguation
+
+**What was attempted:** when a typed city name matches several real places
+(Springfield, MO / IL / MA / OH), present each as a button so the user picks
+the one they meant, rather than silently accepting the geocoder's top hit.
+Raised during assessor feedback as a concern about cities sharing names
+across countries.
+
+**What was built and verified working:**
+- `geo.resolve_city_candidates()` — fetches multiple candidates from
+  Open-Meteo, returning name, region (`admin1`), country and population.
+  Verified: "Paris" returns France plus four US Parises; "Springfield"
+  returns four distinct US cities.
+- A population-dominance heuristic (10:1 ratio) to distinguish genuine
+  ambiguity from technical ambiguity — "Zurich" (Switzerland, 400k vs. a
+  700-person Montana hamlet) should not prompt a choice, while
+  "Springfield" (170k vs. 115k) should. Verified correct on all three
+  cases.
+- `_dispatch_disambiguation()` — builds one button per candidate, each
+  payload carrying that candidate's own coordinates.
+
+**Why it was deferred:** Rasa discards messages dispatched from an
+`extract_<slot>` method that returns without filling its slot. The form
+re-asks the question and the response overwrites the dispatched buttons.
+This was verified directly by logging `dispatcher.messages` inside the
+action: the confirmation was correctly constructed on every attempt, then
+dropped before reaching the user.
+
+Four mitigations were attempted:
+1. A marker slot (`awaiting_disambiguation`) plus a guard in
+   `action_scoped_fallback` to stop it overwriting the prompt — the
+   buttons then appeared, but the form's own `utter_ask_origin` still
+   followed them.
+2. Clearing `requested_slot` to suppress the form's re-ask — this
+   prevented the disambiguation from appearing at all, because
+   `extract_origin` gates on `requested_slot` at entry.
+3. Returning the marker slot alone — worked intermittently, and stopped
+   working after unrelated edits, suggesting the behaviour is sensitive to
+   tracker state in ways that are hard to rely on.
+4. Reverting to (1) — did not restore the earlier working behaviour.
+
+**Decision:** the feature was removed rather than shipped half-working.
+The underlying concern is partially addressed by a simpler mechanism that
+does work reliably: whenever a non-curated city is resolved, the bot states
+the full location back to the user ("📍 I found Zurich, Canton of Zurich,
+Switzerland") so they can see which place was selected and Reset if it is
+wrong. `resolve_city_candidates()` is retained in `geo.py` as the
+groundwork for a future implementation.
+
+**Wider lesson:** this is the fourth distinct issue in this project rooted
+in the same constraint — Rasa's dialogue policies and form internals
+decide what reaches the user, and custom actions cannot reliably override
+that from inside slot extraction. Features that need to interrupt a form
+mid-slot are better implemented as dedicated actions with their own rules,
+or avoided in favour of designs that always fill the slot.
