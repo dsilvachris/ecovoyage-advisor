@@ -175,6 +175,12 @@ slots:
     mappings:
       - type: custom
 
+  awaiting_disambiguation:
+    type: bool
+    influence_conversation: false
+    mappings:
+      - type: custom
+
 forms:
   trip_planning_form:
     required_slots:
@@ -386,11 +392,7 @@ responses:
         - title: "Talk to a human"
           payload: "/request_human"
 
-  awaiting_disambiguation:
-    type: bool
-    influence_conversation: false
-    mappings:
-      - type: custom
+  
 
 session_config:
   session_expiration_time: 60
