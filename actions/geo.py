@@ -142,6 +142,37 @@ def resolve_city_by_name(typed_name: str) -> dict | None:
     except (requests.RequestException, KeyError, IndexError, ValueError, TypeError):
         return None
 
+def resolve_city_candidates(typed_name: str, limit: int = 5) -> list[dict]:
+    """
+    Like resolve_city_by_name, but returns multiple candidate matches so
+    the caller can disambiguate genuinely ambiguous names (Paris, France
+    vs. Paris, Texas vs. Paris, Ontario) rather than silently accepting
+    whichever result the geocoder happened to rank first.
+
+    Returns [] on any failure — callers treat that as "couldn't resolve."
+    """
+    try:
+        response = requests.get(
+            OPEN_METEO_GEOCODING_ENDPOINT,
+            params={"name": typed_name, "count": limit, "language": "en", "format": "json"},
+            timeout=OPEN_METEO_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return [
+            {
+                "name": r["name"],
+                "latitude": r["latitude"],
+                "longitude": r["longitude"],
+                "country": r.get("country"),
+                "country_code": r.get("country_code"),
+                "admin1": r.get("admin1"),
+                "population": r.get("population"),
+            }
+            for r in data.get("results", [])
+        ]
+    except (requests.RequestException, KeyError, ValueError, TypeError):
+        return []
 
 def find_city_typo_match(typed_name: str, supported_city_names: list[str]) -> str | None:
     """

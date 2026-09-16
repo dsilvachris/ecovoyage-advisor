@@ -252,7 +252,11 @@ def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
 
     exact = repository.resolve_city(text)
     if exact:
-        return {"status": "exact", "name": exact["name"]}
+        return {
+            "status": "exact",
+            "name": exact["name"],
+            "is_curated": bool(exact.get("is_curated")),
+        }
 
     cities = repository.get_supported_cities()
     curated_names = [c["name"] for c in cities if c.get("is_curated")]
@@ -260,18 +264,39 @@ def _resolve_city_input(raw_text: str) -> Dict[str, Any]:
     if guess:
         return {"status": "fuzzy", "guess": guess}
 
-    geocoded = geo.resolve_city_by_name(text)
-    if geocoded:
-        return {
-            "status": "geocoded",
-            "name": geocoded["name"],
-            "latitude": geocoded["latitude"],
-            "longitude": geocoded["longitude"],
-            "country": geocoded["country"],
-            "admin1": geocoded["admin1"],
-        }
+        # Fetch several candidates rather than just the first: a name like
+    # "Paris" or "Springfield" can match many real places, and silently
+    # accepting the geocoder's top hit risks planning a trip to the wrong
+    # continent. Curated cities are matched earlier (above), so this only
+    # affects names outside our 21 — where ambiguity is genuinely likely.
+    candidates = geo.resolve_city_candidates(text)
+    if not candidates:
+        return {"status": "none"}
 
-    return {"status": "none"}
+    # Distinct = different country or different region within a country.
+    # Two results for the same place (geocoder duplicates) shouldn't
+    # trigger a needless "which one?" question.
+    seen = set()
+    distinct = []
+    for c in candidates:
+        key = (c.get("country"), c.get("admin1"))
+        if key not in seen:
+            seen.add(key)
+            distinct.append(c)
+
+            # Take the top candidate. Button-based disambiguation for ambiguous
+    # names was attempted and deferred — see docs/testing-log.md. The
+    # resolved location is always stated back with full region/country
+    # context, so the user can see which place was chosen and Reset if
+    # it's wrong.
+    return {
+        "status": "geocoded",
+        "name": distinct[0]["name"],
+        "latitude": distinct[0]["latitude"],
+        "longitude": distinct[0]["longitude"],
+        "country": distinct[0]["country"],
+        "admin1": distinct[0]["admin1"],
+    }
 
 def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, slot_name: str, guess: str) -> None:
     """FR-03 — see module docstring, point 5. The "Yes" button carries the
@@ -288,6 +313,36 @@ def _dispatch_city_confirmation(dispatcher: CollectingDispatcher, slot_name: str
             {"title": "Yes", "payload": f'/inform{{"{slot_name}": "{guess}"}}'},
             {"title": "No", "payload": "/deny"},
         ],
+    )
+
+def _dispatch_disambiguation(
+    dispatcher: CollectingDispatcher, slot_name: str, candidates: List[Dict[str, Any]]
+) -> None:
+    """Offers a button per distinct candidate when a city name matches
+    several real places (Springfield, MO vs. IL vs. MA...). Each payload
+    carries that candidate's own coordinates, so the follow-up tap goes
+    through the same proven /inform{...} path as every other button in the
+    app — no cross-turn state needed."""
+    buttons = []
+    for c in candidates:
+        label_parts = [c["name"]]
+        if c.get("admin1"):
+            label_parts.append(c["admin1"])
+        if c.get("country"):
+            label_parts.append(c["country"])
+        buttons.append({
+            "title": ", ".join(label_parts),
+            "payload": (
+                f'/inform{{"{slot_name}": "{c["name"]}", '
+                f'"geo_lat": "{c["latitude"]}", '
+                f'"geo_lon": "{c["longitude"]}", '
+                f'"geo_country": "{c.get("country") or ""}"}}'
+            ),
+        })
+
+    dispatcher.utter_message(
+        text=f"There are a few places called {candidates[0]['name']} — which one did you mean?",
+        buttons=buttons,
     )
 
 def _dispatch_geocoded_confirmation(
@@ -515,6 +570,17 @@ class ValidateTripPlanningForm(FormValidationAction):
                 dispatcher.utter_message(
                     text=f"📍 We've detected your location near {result['name']} — setting that as your departure city."
                 )
+            elif result.get("is_curated") is False:
+                # Already in the DB from an earlier conversation, but not
+                # one of our curated destinations — the user should still
+                # know eco-certified stays won't be available there.
+                dispatcher.utter_message(
+                    text=(
+                        f"{result['name']} isn't one of our curated eco-destinations, so I'll "
+                        f"estimate your trip's carbon footprint but won't have verified "
+                        f"eco-certified stays there."
+                    )
+                )
             return {"origin": result["name"]}
                 # Both typo-corrected and geocoded cities are ACCEPTED directly
         # rather than asking for yes/no confirmation first. Rasa discards
@@ -600,6 +666,17 @@ class ValidateTripPlanningForm(FormValidationAction):
                     text="That's the same as your origin — where would you like to go instead?"
                 )
                 return {}
+            if result.get("is_curated") is False:
+                # Already in the DB from an earlier conversation, but not
+                # one of our curated destinations — the user should still
+                # know eco-certified stays won't be available there.
+                dispatcher.utter_message(
+                    text=(
+                        f"{result['name']} isn't one of our curated eco-destinations, so I'll "
+                        f"estimate your trip's carbon footprint but won't have verified "
+                        f"eco-certified stays there."
+                    )
+                )
             return {"destination": result["name"]}
 
         # Direct-accept rather than confirm — see extract_origin's
@@ -645,6 +722,7 @@ class ValidateTripPlanningForm(FormValidationAction):
             return {"destination": city_row["name"]}
 
         return {}
+
 
     async def validate_travel_date(
         self, slot_value: Any, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
@@ -1086,6 +1164,11 @@ class ActionScopedFallback(Action):
     async def run(
         self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]
     ) -> List[Dict[Text, Any]]:
+        # A disambiguation prompt was just shown — don't overwrite it with
+        # utter_ask_<slot>, which would hide the buttons the user needs.
+        if tracker.get_slot("awaiting_disambiguation"):
+            return [SlotSet("awaiting_disambiguation", False), FollowupAction("action_listen")]
+
         if tracker.active_loop.get("name") == "trip_planning_form":
             requested_slot = tracker.get_slot("requested_slot")
             utter_name = f"utter_ask_{requested_slot}"

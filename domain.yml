@@ -386,7 +386,15 @@ responses:
         - title: "Talk to a human"
           payload: "/request_human"
 
+  awaiting_disambiguation:
+    type: bool
+    influence_conversation: false
+    mappings:
+      - type: custom
+
 session_config:
   session_expiration_time: 60
   carry_over_slots_to_new_session: true
+
+
 
